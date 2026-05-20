@@ -21,3 +21,9 @@ such that the distance $\|T - T'\|$ is minimal (of course, first you need to dec
 박사빈
 정범준
 조수호
+
+---
+
+## 참고
+
+- [Git 기초 튜토리얼](documentation/git_tutorial.md) — Git을 처음 사용하는 팀원을 위한 가이드
