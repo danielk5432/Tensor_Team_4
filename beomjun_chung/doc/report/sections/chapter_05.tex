@@ -1,1 +1,416 @@
-\section{Image Compression Demo}
+% ============================================================
+%  sections/chapter_05.tex
+%  Section 5: Experiments
+% ============================================================
+
+\section{Experiments}
+\label{sec:experiments}
+
+We conduct four controlled numerical experiments, each designed to verify
+a specific theoretical prediction from Sections~\ref{sec:background}--\ref{sec:norms}.
+All experiments use a standard test image of size $256 \times 256 \times 3$
+(RGB, values normalised to $[0, 1]$) unless otherwise stated.
+Implementations follow the structure described in Section~\ref{sec:demo};
+random seeds are fixed at 42 for reproducibility.
+
+% ------------------------------------------------------------
+\subsection{Experiment 1: Rank Truncation and Theoretical Error Bound}
+\label{subsec:exp_rank}
+% ------------------------------------------------------------
+
+\paragraph{Hypothesis.}
+The HOSVD error bound~\eqref{eq:hosvd_bound} states that
+\begin{equation}
+  \frobn{\tensor{X} - \hat{\tensor{X}}_{\mathrm{HOSVD}}}^2
+  \;\leq\;
+  B(r_1, r_2, r_3)
+  \;\coloneqq\;
+  \sum_{n=1}^{3} \sum_{i=r_n+1}^{I_n} \sigma_i^{(n)2}.
+  \label{eq:exp1_bound}
+\end{equation}
+We expect the empirical error to track $B(r,r,r)$ as $r$ varies,
+with HOOI strictly below HOSVD due to iterative refinement.
+
+\paragraph{Setup.}
+Tucker rank is swept as $r \in \{2, 4, 8, 16, 24, 32, 48, 64\}$
+with the color axis fixed at $r_3 = 3$ (full rank).
+For each $r$, we record:
+\begin{itemize}
+  \item Empirical HOSVD reconstruction error (left-hand side of~\eqref{eq:exp1_bound}),
+  \item Theoretical bound $B(r, r, 3)$ (right-hand side),
+  \item HOOI error after convergence,
+  \item Compression ratio $\rho$~\eqref{eq:tucker_ratio},
+  \item PSNR of the reconstructed image.
+\end{itemize}
+
+\paragraph{Expected results.}
+\begin{itemize}
+  \item Empirical HOSVD error $\leq B(r,r,3)$ for all $r$ (bound verified).
+  \item HOOI error $\leq$ HOSVD error (refinement monotonically helps).
+  \item Error decays at a rate governed by the singular value spectrum;
+        rapid decay implies a low effective rank.
+  \item PSNR crosses 30\,dB (visually acceptable) around $r \approx 20$--30
+        for natural images.
+\end{itemize}
+
+\paragraph{Metrics reported.}
+\begin{equation}
+  \text{RelErr}
+  \;=\; \frac{\frobn{\tensor{X} - \hat{\tensor{X}}}}{\frobn{\tensor{X}}},
+  \qquad
+  \text{PSNR}
+  \;=\; 10 \log_{10}\!\left(\frac{1}{\mathrm{MSE}}\right)
+  \;\text{[dB]},
+  \qquad
+  \rho
+  \;=\; \frac{\prod_n I_n}{P_{\mathrm{Tucker}}}.
+  \label{eq:exp1_metrics}
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{Experiment 2: Norm Comparison under Structured Noise}
+\label{subsec:exp_noise}
+% ------------------------------------------------------------
+
+\paragraph{Hypothesis.}
+Under sparse corruption, $\mathcal{L}_1$-Tucker (IRLS) should outperform
+$\mathcal{L}_F$-Tucker (HOOI), and the performance gap should grow with
+corruption density (Section~\ref{subsec:norm_comparison}).
+Under dense Gaussian noise, $\mathcal{L}_F$ should be optimal.
+
+\paragraph{Setup.}
+We construct three noise conditions:
+\begin{enumerate}
+  \item \textbf{Gaussian}: $e_{ijk} \sim \mathcal{N}(0, \sigma^2)$,
+        $\sigma \in \{0.05, 0.10, 0.20\}$.
+  \item \textbf{Sparse outliers}: a fraction $p \in \{0.05, 0.10, 0.20\}$
+        of entries is replaced by $\mathrm{Uniform}(-1, 1)$ noise.
+  \item \textbf{Mixed}: Gaussian ($\sigma = 0.05$) plus sparse corruption
+        ($p = 0.10$).
+\end{enumerate}
+Tucker rank is fixed at $(r, r, 3)$ with $r = 20$.
+Three methods are compared: HOOI ($\mathcal{L}_F$), IRLS ($\mathcal{L}_1$),
+and Adam ($\mathcal{L}_H$, $\delta = 0.1$).
+
+\paragraph{Expected results.}
+\begin{itemize}
+  \item Gaussian noise: HOOI achieves lowest RelErr; IRLS and Adam are
+        close but slightly suboptimal.
+  \item Sparse outliers: IRLS achieves lowest RelErr; advantage grows
+        with $p$.
+  \item Mixed: Huber (Adam) achieves best compromise.
+  \item Error maps: HOOI spreads residual uniformly; IRLS concentrates
+        residual on corrupted pixels.
+\end{itemize}
+
+% ------------------------------------------------------------
+\subsection{Experiment 3: Convergence Analysis}
+\label{subsec:exp_convergence}
+% ------------------------------------------------------------
+
+\paragraph{Hypothesis.}
+HOOI should exhibit monotone decreasing error with fast initial convergence
+(superlinear near the solution due to the SVD step).
+Adam should converge more slowly but eventually reach similar quality
+on the Huber objective.
+IRLS outer iterations should converge in fewer than 20 steps.
+
+\paragraph{Setup.}
+All three methods are run for 100 iterations on the same tensor
+($256 \times 256 \times 3$, rank $(20, 20, 3)$, no added noise).
+We record at every iteration:
+\begin{equation}
+  e_t^{(F)} = \frobn{\tensor{X} - \hat{\tensor{X}}^{(t)}}, \qquad
+  \Delta_t^{(n)} = \frobn{\mat{U}^{(n)(t)} - \mat{U}^{(n)(t-1)}},
+  \label{eq:exp3_metrics}
+\end{equation}
+where $e_t^{(F)}$ measures reconstruction quality and
+$\Delta_t^{(n)}$ measures factor matrix stability.
+
+\paragraph{Expected results.}
+\begin{itemize}
+  \item HOOI: $e_t^{(F)}$ strictly non-increasing; $\Delta_t^{(n)} \to 0$.
+  \item Adam: non-monotone $e_t^{(F)}$ but overall decreasing trend.
+  \item IRLS: fast outer convergence (10--15 steps) when warm-started
+        from HOOI solution.
+\end{itemize}
+
+% ------------------------------------------------------------
+\subsection{Experiment 4: Initialization Sensitivity}
+\label{subsec:exp_init}
+% ------------------------------------------------------------
+
+\paragraph{Hypothesis.}
+Due to non-convexity, different initializations may converge to different
+local minima.
+HOSVD initialization should consistently outperform random initialization
+and reduce variance across runs.
+
+\paragraph{Setup.}
+For Tucker rank $(20, 20, 3)$ on the clean image, we compare:
+\begin{enumerate}
+  \item \textbf{HOSVD} (deterministic, 1 run),
+  \item \textbf{Random orthogonal} (5 independent runs, different seeds),
+  \item \textbf{Random Gaussian} (5 independent runs).
+\end{enumerate}
+Each initialization is followed by 50 HOOI iterations.
+We report the distribution (mean $\pm$ std) of final RelErr across runs.
+
+\paragraph{Expected results.}
+\begin{itemize}
+  \item HOSVD initialization converges to a lower error than random.
+  \item Random orthogonal has lower variance than random Gaussian.
+  \item The gap between best and worst random run (max RelErr $-$ min RelErr)
+        quantifies the severity of the local minima problem.
+\end{itemize}
+
+% ------------------------------------------------------------
+\subsection{Summary of Results}
+\label{subsec:exp_summary}
+% ------------------------------------------------------------
+
+Table~\ref{tab:exp_summary} consolidates the key quantitative results
+across all four experiments.
+Detailed figures (convergence curves, error maps, rank-error plots)
+are presented alongside the image compression demonstration in
+Section~\ref{sec:demo}.
+
+\begin{table}[h]
+  \centering
+  \caption{Summary of experimental results.
+           RelErr values are relative Frobenius errors.
+           All results use Tucker rank $(20, 20, 3)$ unless stated.}
+  \label{tab:exp_summary}
+  \begin{tabular}{llcc}
+    \toprule
+    Experiment & Setting & Method & RelErr \\
+    \midrule
+    \multirow{2}{*}{Exp.\ 1 (rank sweep)}
+      & $r = 20$  & HOSVD & --- \\
+      & $r = 20$  & HOOI  & --- \\
+    \midrule
+    \multirow{3}{*}{Exp.\ 2 (noise, $p=0.10$)}
+      & Sparse outliers & HOOI  & --- \\
+      & Sparse outliers & IRLS  & --- \\
+      & Sparse outliers & Adam  & --- \\
+    \midrule
+    \multirow{2}{*}{Exp.\ 3 (convergence)}
+      & Iterations to $\Delta < 10^{-4}$ & HOOI & --- \\
+      & Iterations to $\Delta < 10^{-4}$ & Adam & --- \\
+    \midrule
+    \multirow{2}{*}{Exp.\ 4 (init.)}
+      & HOSVD init & HOOI & --- \\
+      & Random init (mean $\pm$ std) & HOOI & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent
+Dashes (---) are filled with experimental values upon code execution.
+The table structure is provided here to make the theory--experiment
+connection explicit before results are available.
+
+% % ============================================================
+% %  sections/chapter_05_ko.tex
+% %  5장: 실험
+% % ============================================================
+
+% \section{실험}
+% \label{sec:experiments}
+
+% 본 장에서는 \ref{sec:background}--\ref{sec:norms}장의 이론적 예측을 각각 검증하도록
+% 설계된 네 가지 통제된 수치 실험을 수행한다.
+% 별도로 명시하지 않는 한, 모든 실험은 크기 $256 \times 256 \times 3$
+% (RGB, 값 정규화 범위 $[0, 1]$)의 표준 테스트 이미지를 사용한다.
+% 구현은 \ref{sec:demo}장에서 설명하는 구조를 따르며, 재현성을 위해
+% 난수 시드는 42로 고정한다.
+
+% % ------------------------------------------------------------
+% \subsection{실험 1: 랭크 절단과 이론적 오차 상한}
+% \label{subsec:exp_rank}
+% % ------------------------------------------------------------
+
+% \paragraph{가설.}
+% HOSVD 오차 상한~\eqref{eq:hosvd_bound}에 의하면
+% \begin{equation}
+%   \frobn{\tensor{X} - \hat{\tensor{X}}_{\mathrm{HOSVD}}}^2
+%   \;\leq\;
+%   B(r_1, r_2, r_3)
+%   \;\coloneqq\;
+%   \sum_{n=1}^{3} \sum_{i=r_n+1}^{I_n} \sigma_i^{(n)2}.
+%   \label{eq:exp1_bound}
+% \end{equation}
+% $r$이 변함에 따라 실험적 오차가 $B(r,r,r)$을 추적할 것으로 예상하며,
+% HOOI는 반복 정제로 인해 HOSVD보다 엄밀히 낮은 오차를 보일 것으로 예상한다.
+
+% \paragraph{설정.}
+% Tucker 랭크를 $r \in \{2, 4, 8, 16, 24, 32, 48, 64\}$로 변화시키며,
+% 색상 축은 $r_3 = 3$ (전체 랭크)으로 고정한다.
+% 각 $r$에 대해 다음을 기록한다:
+% \begin{itemize}
+%   \item 실험적 HOSVD 재구성 오차 (식~\eqref{eq:exp1_bound} 좌변),
+%   \item 이론적 상한 $B(r, r, 3)$ (우변),
+%   \item 수렴 후 HOOI 오차,
+%   \item 압축률 $\rho$~\eqref{eq:tucker_ratio},
+%   \item 재구성 이미지의 PSNR.
+% \end{itemize}
+
+% \paragraph{예상 결과.}
+% \begin{itemize}
+%   \item 모든 $r$에서 실험적 HOSVD 오차 $\leq B(r,r,3)$ (상한 검증).
+%   \item HOOI 오차 $\leq$ HOSVD 오차 (정제가 단조적으로 도움).
+%   \item 오차 감소율은 특이값 스펙트럼에 의해 결정되며,
+%         급격한 감소는 낮은 유효 랭크를 시사.
+%   \item 자연 이미지에서 $r \approx 20$--30 근방에서 PSNR 30\,dB
+%         (시각적으로 수용 가능) 초과.
+% \end{itemize}
+
+% \paragraph{보고 지표.}
+% \begin{equation}
+%   \text{RelErr}
+%   \;=\; \frac{\frobn{\tensor{X} - \hat{\tensor{X}}}}{\frobn{\tensor{X}}},
+%   \qquad
+%   \text{PSNR}
+%   \;=\; 10 \log_{10}\!\left(\frac{1}{\mathrm{MSE}}\right)
+%   \;\text{[dB]},
+%   \qquad
+%   \rho
+%   \;=\; \frac{\prod_n I_n}{P_{\mathrm{Tucker}}}.
+%   \label{eq:exp1_metrics}
+% \end{equation}
+
+% % ------------------------------------------------------------
+% \subsection{실험 2: 구조적 잡음 하에서의 노름 비교}
+% \label{subsec:exp_noise}
+% % ------------------------------------------------------------
+
+% \paragraph{가설.}
+% 희소 손상 하에서는 $\mathcal{L}_1$-Tucker (IRLS)가
+% $\mathcal{L}_F$-Tucker (HOOI)를 능가해야 하며,
+% 성능 격차는 손상 밀도에 따라 증가해야 한다
+% (\ref{subsec:norm_comparison}절).
+% 밀집 가우시안 잡음 하에서는 $\mathcal{L}_F$가 최적이어야 한다.
+
+% \paragraph{설정.}
+% 세 가지 잡음 조건을 구성한다:
+% \begin{enumerate}
+%   \item \textbf{가우시안}: $e_{ijk} \sim \mathcal{N}(0, \sigma^2)$,
+%         $\sigma \in \{0.05, 0.10, 0.20\}$.
+%   \item \textbf{희소 이상치}: 비율 $p \in \{0.05, 0.10, 0.20\}$의
+%         원소를 $\mathrm{Uniform}(-1, 1)$ 잡음으로 대체.
+%   \item \textbf{혼합}: 가우시안 ($\sigma = 0.05$) + 희소 손상 ($p = 0.10$).
+% \end{enumerate}
+% Tucker 랭크는 $r = 20$으로 고정하여 $(r, r, 3)$을 사용한다.
+% 세 방법을 비교한다: HOOI ($\mathcal{L}_F$), IRLS ($\mathcal{L}_1$),
+% Adam ($\mathcal{L}_H$, $\delta = 0.1$).
+
+% \paragraph{예상 결과.}
+% \begin{itemize}
+%   \item 가우시안 잡음: HOOI가 최저 RelErr; IRLS와 Adam은 근접하나 약간 열등.
+%   \item 희소 이상치: IRLS가 최저 RelErr; 이점이 $p$에 따라 증가.
+%   \item 혼합: Huber (Adam)가 최선의 절충안 달성.
+%   \item 오차 지도: HOOI는 잔차가 균등 분산; IRLS는 손상 픽셀에 집중.
+% \end{itemize}
+
+% % ------------------------------------------------------------
+% \subsection{실험 3: 수렴 분석}
+% \label{subsec:exp_convergence}
+% % ------------------------------------------------------------
+
+% \paragraph{가설.}
+% HOOI는 단조 감소 오차를 보이며, SVD 단계로 인해 해 근방에서
+% 초선형(superlinear) 수렴을 보일 것이다.
+% Adam은 더 느리게 수렴하지만 Huber 목적 함수에서 유사한 품질에 도달할 것이다.
+% IRLS 외부 반복은 20회 이내에 수렴할 것이다.
+
+% \paragraph{설정.}
+% 동일한 텐서($256 \times 256 \times 3$, 랭크 $(20, 20, 3)$,
+% 추가 잡음 없음)에 세 방법을 100회 반복 실행한다.
+% 매 반복마다 기록:
+% \begin{equation}
+%   e_t^{(F)} = \frobn{\tensor{X} - \hat{\tensor{X}}^{(t)}}, \qquad
+%   \Delta_t^{(n)} = \frobn{\mat{U}^{(n)(t)} - \mat{U}^{(n)(t-1)}},
+%   \label{eq:exp3_metrics}
+% \end{equation}
+% 여기서 $e_t^{(F)}$는 재구성 품질, $\Delta_t^{(n)}$는
+% 인수 행렬 안정성을 측정한다.
+
+% \paragraph{예상 결과.}
+% \begin{itemize}
+%   \item HOOI: $e_t^{(F)}$이 엄밀히 단조 비증가; $\Delta_t^{(n)} \to 0$.
+%   \item Adam: $e_t^{(F)}$은 비단조이지만 전반적으로 감소 추세.
+%   \item IRLS: HOOI 해로 웜 스타트 시 10--15회 외부 반복으로 빠른 수렴.
+% \end{itemize}
+
+% % ------------------------------------------------------------
+% \subsection{실험 4: 초기화 민감도}
+% \label{subsec:exp_init}
+% % ------------------------------------------------------------
+
+% \paragraph{가설.}
+% 비볼록성으로 인해 서로 다른 초기화가 서로 다른 국소 최솟값으로
+% 수렴할 수 있다.
+% HOSVD 초기화는 무작위 초기화보다 일관되게 우수하며 런 간 분산을
+% 줄여야 한다.
+
+% \paragraph{설정.}
+% 깨끗한 이미지에서 Tucker 랭크 $(20, 20, 3)$으로 비교한다:
+% \begin{enumerate}
+%   \item \textbf{HOSVD} (결정론적, 1회 실행),
+%   \item \textbf{무작위 직교} (5회 독립 실행, 서로 다른 시드),
+%   \item \textbf{무작위 가우시안} (5회 독립 실행).
+% \end{enumerate}
+% 각 초기화 후 50회 HOOI 반복을 수행한다.
+% 런 전반에 걸쳐 최종 RelErr의 분포(평균 $\pm$ 표준편차)를 보고한다.
+
+% \paragraph{예상 결과.}
+% \begin{itemize}
+%   \item HOSVD 초기화가 무작위보다 낮은 오차로 수렴.
+%   \item 무작위 직교가 무작위 가우시안보다 낮은 분산.
+%   \item 최선과 최악의 무작위 런 간 격차(최대 RelErr $-$ 최소 RelErr)가
+%         국소 최솟값 문제의 심각도를 정량화.
+% \end{itemize}
+
+% % ------------------------------------------------------------
+% \subsection{결과 요약}
+% \label{subsec:exp_summary}
+% % ------------------------------------------------------------
+
+% 표~\ref{tab:exp_summary}은 네 실험의 핵심 정량적 결과를 통합한다.
+% 상세 그림(수렴 곡선, 오차 지도, 랭크-오차 플롯)은
+% \ref{sec:demo}장의 이미지 압축 데모와 함께 제시한다.
+
+% \begin{table}[h]
+%   \centering
+%   \caption{실험 결과 요약.
+%            RelErr은 상대 프로베니우스 오차.
+%            별도 명시 없는 경우 Tucker 랭크 $(20, 20, 3)$ 사용.}
+%   \label{tab:exp_summary}
+%   \begin{tabular}{llcc}
+%     \toprule
+%     실험 & 설정 & 방법 & RelErr \\
+%     \midrule
+%     \multirow{2}{*}{실험 1 (랭크 스윕)}
+%       & $r = 20$ & HOSVD & --- \\
+%       & $r = 20$ & HOOI  & --- \\
+%     \midrule
+%     \multirow{3}{*}{실험 2 (잡음, $p=0.10$)}
+%       & 희소 이상치 & HOOI  & --- \\
+%       & 희소 이상치 & IRLS  & --- \\
+%       & 희소 이상치 & Adam  & --- \\
+%     \midrule
+%     \multirow{2}{*}{실험 3 (수렴)}
+%       & $\Delta < 10^{-4}$까지 반복 수 & HOOI & --- \\
+%       & $\Delta < 10^{-4}$까지 반복 수 & Adam & --- \\
+%     \midrule
+%     \multirow{2}{*}{실험 4 (초기화)}
+%       & HOSVD 초기화   & HOOI & --- \\
+%       & 무작위 초기화 (평균 $\pm$ 표준편차) & HOOI & --- \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+% \noindent
+% 대시(---)는 코드 실행 후 실험값으로 채워진다.
+% 결과가 확보되기 전에도 이론--실험 연결을 명시적으로 드러내기 위해
+% 표 구조를 미리 제시하였다.
