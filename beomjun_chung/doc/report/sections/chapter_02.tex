@@ -1,0 +1,649 @@
+% ============================================================
+%  sections/chapter_02.tex
+%  Section 2: Mathematical Background
+% ============================================================
+
+\section{Mathematical Background}
+\label{sec:background}
+
+This section establishes the notation and mathematical foundations used
+throughout the report.
+We introduce tensor algebra, the two decomposition families under study
+(Tucker and CP), the multilinear singular value decomposition (HOSVD),
+and the reconstruction losses that define each optimization problem.
+
+% ------------------------------------------------------------
+\subsection{Tensor Notation}
+\label{subsec:notation}
+% ------------------------------------------------------------
+
+A \emph{tensor} $\tensor{X} \in \R^{I_1 \times I_2 \times \cdots \times I_N}$
+is an $N$-way array.
+Its entry indexed by $(i_1, i_2, \ldots, i_N)$ is written $x_{i_1 i_2 \cdots i_N}$.
+We adopt the following notational convention throughout:
+calligraphic letters ($\tensor{X}$) for tensors,
+bold uppercase ($\mat{U}$) for matrices,
+bold lowercase ($\vect{u}$) for vectors,
+and italic lowercase ($\lambda, r$) for scalars.
+
+\paragraph{Frobenius norm.}
+The Frobenius norm of a tensor generalizes the matrix Frobenius norm
+entry-wise:
+\begin{equation}
+  \frobn{\tensor{X}}
+  \;=\; \sqrt{\,\sum_{i_1=1}^{I_1} \cdots \sum_{i_N=1}^{I_N}
+               x_{i_1 \cdots i_N}^2\,}
+  \;=\; \sqrt{\langle \tensor{X},\, \tensor{X} \rangle}.
+  \label{eq:frobenius}
+\end{equation}
+It satisfies \emph{unitary invariance}: for any orthogonal matrices
+$\mat{Q}_n$,
+\begin{equation}
+  \frobn{\tensor{X} \times_1 \mat{Q}_1 \times_2 \mat{Q}_2 \cdots
+         \times_N \mat{Q}_N}
+  \;=\; \frobn{\tensor{X}}.
+  \label{eq:unitary_inv}
+\end{equation}
+This property is central to the correctness of HOSVD and HOOI
+(Section~\ref{subsec:hosvd}).
+
+\paragraph{Mode-$n$ unfolding (matricization).}
+The \emph{mode-$n$ unfolding}
+$\unfold{X}{n} \in \R^{I_n \times \prod_{k \neq n} I_k}$
+rearranges the entries of $\tensor{X}$ such that the mode-$n$ index
+maps to rows and all remaining indices (in lexicographic order) map to
+columns~\cite{kolda2009tensor}.
+Concretely,
+\begin{equation}
+  \bigl[\unfold{X}{n}\bigr]_{i_n,\, j}
+  \;=\; x_{i_1 i_2 \cdots i_N},
+  \qquad
+  j = 1 + \sum_{\substack{k=1\\k\neq n}}^{N}
+          (i_k - 1)\prod_{\substack{m=1\\m\neq n}}^{k-1} I_m.
+  \label{eq:unfolding}
+\end{equation}
+
+\paragraph{Mode-$n$ product.}
+The \emph{mode-$n$ product} of
+$\tensor{X} \in \R^{I_1 \times \cdots \times I_N}$
+with $\mat{U} \in \R^{J \times I_n}$ is the tensor
+$\tensor{Y} = \tensor{X} \times_n \mat{U}
+\in \R^{I_1 \times \cdots \times I_{n-1} \times J \times I_{n+1}
+\times \cdots \times I_N}$ defined entry-wise as
+\begin{equation}
+  y_{i_1 \cdots i_{n-1}\, j\, i_{n+1} \cdots i_N}
+  \;=\; \sum_{i_n=1}^{I_n} x_{i_1 \cdots i_N}\, u_{j i_n}.
+  \label{eq:mode_product}
+\end{equation}
+In matricized form this becomes
+\begin{equation}
+  \bigl(\tensor{X} \times_n \mat{U}\bigr)_{(n)}
+  \;=\; \mat{U}\, \unfold{X}{n},
+  \label{eq:mode_product_mat}
+\end{equation}
+which reduces the mode-$n$ product to ordinary matrix multiplication and
+underpins the ALS update rules derived in
+Section~\ref{subsec:als}.
+
+\paragraph{Commutativity of mode products.}
+For $m \neq n$,
+\begin{equation}
+  \tensor{X} \times_m \mat{A} \times_n \mat{B}
+  \;=\; \tensor{X} \times_n \mat{B} \times_m \mat{A}.
+  \label{eq:mode_commute}
+\end{equation}
+This commutativity is used repeatedly in the derivation of ALS subproblems.
+
+% ------------------------------------------------------------
+\subsection{Tucker Decomposition}
+\label{subsec:tucker}
+% ------------------------------------------------------------
+
+\begin{definition}[Tucker decomposition]
+  A rank-$(r_1, \ldots, r_N)$ Tucker approximation of
+  $\tensor{X} \in \R^{I_1 \times \cdots \times I_N}$ is
+  \begin{equation}
+    \hat{\tensor{X}}
+    \;=\; \tensor{G}
+          \times_1 \mat{U}^{(1)}
+          \times_2 \mat{U}^{(2)}
+          \cdots
+          \times_N \mat{U}^{(N)},
+    \label{eq:tucker}
+  \end{equation}
+  where $\tensor{G} \in \R^{r_1 \times \cdots \times r_N}$ is the
+  \emph{core tensor} and each factor matrix
+  $\mat{U}^{(n)} \in \R^{I_n \times r_n}$ has orthonormal columns,
+  i.e., ${\mat{U}^{(n)}}^\top \mat{U}^{(n)} = \mat{I}_{r_n}$.
+\end{definition}
+
+Mode-$n$ unfolding of $\hat{\tensor{X}}$ yields
+\begin{equation}
+  \hat{\mat{X}}_{(n)}
+  \;=\; \mat{U}^{(n)}\, \mat{G}_{(n)}
+        \Bigl(\mat{U}^{(N)} \kron \cdots \kron \mat{U}^{(n+1)}
+              \kron \mat{U}^{(n-1)} \kron \cdots \kron \mat{U}^{(1)}
+        \Bigr)^{\!\top},
+  \label{eq:tucker_matricized}
+\end{equation}
+where $\kron$ denotes the Kronecker product.
+Equation~\eqref{eq:tucker_matricized} exposes the least-squares structure
+exploited by ALS.
+
+\paragraph{Parameter count and compression ratio.}
+The Tucker format requires
+\begin{equation}
+  P_{\mathrm{Tucker}}
+  \;=\; \prod_{n=1}^{N} r_n
+        \;+\; \sum_{n=1}^{N} I_n r_n
+  \label{eq:tucker_params}
+\end{equation}
+parameters.
+The compression ratio relative to the dense tensor is
+\begin{equation}
+  \rho
+  \;=\; \frac{\displaystyle\prod_{n=1}^{N} I_n}
+             {P_{\mathrm{Tucker}}}.
+  \label{eq:tucker_ratio}
+\end{equation}
+For a three-channel image of size $H \times W \times 3$ with Tucker rank
+$(r, r, 3)$, this gives
+$\rho = HW \cdot 3\,/\,(3r^2 + Hr + Wr + 3r)$,
+which grows roughly as $HW/r^2$ for large images.
+
+\paragraph{Relationship to truncated SVD.}
+For $N=2$, Tucker reduces to the truncated SVD:
+$\hat{\mat{X}} = \mat{U} \mat{\Sigma}_r \mat{V}^\top$,
+with $\tensor{G} = \mat{\Sigma}_r$ and
+$\mat{U}^{(1)} = \mat{U}$, $\mat{U}^{(2)} = \mat{V}$.
+Tucker thus provides the natural multilinear generalization of low-rank
+matrix approximation.
+
+% ------------------------------------------------------------
+\subsection{CP Decomposition}
+\label{subsec:cp}
+% ------------------------------------------------------------
+
+\begin{definition}[CP decomposition]
+  A rank-$R$ CANDECOMP/PARAFAC (CP) approximation of $\tensor{X}$ is
+  \begin{equation}
+    \hat{\tensor{X}}
+    \;=\; \sum_{r=1}^{R} \lambda_r\,
+          \vect{a}_r^{(1)} \circ \vect{a}_r^{(2)} \circ \cdots \circ
+          \vect{a}_r^{(N)},
+    \label{eq:cp}
+  \end{equation}
+  where $\circ$ denotes the outer product,
+  $\|\vect{a}_r^{(n)}\|_2 = 1$, and $\lambda_r \geq 0$.
+\end{definition}
+
+CP can be viewed as Tucker with a \emph{superdiagonal} core of size
+$R \times \cdots \times R$, i.e., the case $r_1 = \cdots = r_N = R$
+with $g_{i_1 \cdots i_N} = \lambda_{i_1}$ only when
+$i_1 = i_2 = \cdots = i_N$ and zero otherwise.
+The CP format stores
+$R \bigl(\sum_{n=1}^{N} I_n + 1\bigr)$
+parameters, fewer than Tucker for the same $R$, but determining the exact
+CP rank is NP-hard in general~\cite{kolda2009tensor}.
+
+\begin{remark}[CP degeneracy]
+  Unlike Tucker, the best rank-$R$ CP approximation of a tensor of order
+  $N \geq 3$ may not exist: the infimum of the objective is not always
+  attained~\cite{kolda2009tensor}.
+  Tucker decomposition avoids this pathology because orthonormal factor
+  matrices form a compact set.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Higher-Order SVD (HOSVD)}
+\label{subsec:hosvd}
+% ------------------------------------------------------------
+
+\begin{definition}[HOSVD~\cite{de2000multilinear}]
+  The \emph{Higher-Order SVD} of $\tensor{X}$ computes each factor matrix
+  independently:
+  \begin{equation}
+    \mat{U}^{(n)}
+    \;\coloneqq\;
+    \text{leading } r_n \text{ left singular vectors of } \unfold{X}{n},
+    \quad n = 1, \ldots, N,
+    \label{eq:hosvd_factors}
+  \end{equation}
+  and sets the core tensor to
+  \begin{equation}
+    \tensor{G}
+    \;=\; \tensor{X}
+          \times_1 {\mat{U}^{(1)}}^\top
+          \times_2 {\mat{U}^{(2)}}^\top
+          \cdots
+          \times_N {\mat{U}^{(N)}}^\top.
+    \label{eq:hosvd_core}
+  \end{equation}
+\end{definition}
+
+HOSVD is computed in closed form and provides a deterministic initialization.
+However, it is \emph{not} the globally optimal Tucker approximation because
+the mode-$n$ factor matrices are optimized independently rather than jointly.
+
+\begin{proposition}[HOSVD error bound~\cite{de2000multilinear}]
+  Let $\hat{\tensor{X}}_{\mathrm{HOSVD}}$ denote the rank-$(r_1,\ldots,r_N)$
+  HOSVD approximation of $\tensor{X}$.
+  Then
+  \begin{equation}
+    \frobn{\tensor{X} - \hat{\tensor{X}}_{\mathrm{HOSVD}}}^2
+    \;\leq\;
+    \sum_{n=1}^{N} \sum_{i=r_n+1}^{I_n} \sigma_i^{(n)2},
+    \label{eq:hosvd_bound}
+  \end{equation}
+  where $\sigma_i^{(n)}$ denotes the $i$-th singular value of $\unfold{X}{n}$.
+\end{proposition}
+
+Equation~\eqref{eq:hosvd_bound} is used in Section~\ref{sec:experiments}
+to benchmark the rank sweep experiment:
+the left-hand side is measured empirically and compared with the right-hand
+side computed from the singular value spectra.
+
+% ------------------------------------------------------------
+\subsection{Reconstruction Losses}
+\label{subsec:losses}
+% ------------------------------------------------------------
+
+The general approximation problem is
+\begin{equation}
+  \min_{\tensor{G},\, \{\mat{U}^{(n)}\}}\;
+  \mathcal{L}\!\left(\tensor{X},\, \hat{\tensor{X}}\right),
+  \label{eq:general_opt}
+\end{equation}
+where the choice of $\mathcal{L}$ determines both the statistical
+interpretation of the solution and the algorithmic complexity of
+the optimization.
+We study three loss functions.
+
+\paragraph{Squared Frobenius loss.}
+\begin{equation}
+  \mathcal{L}_F(\tensor{X}, \hat{\tensor{X}})
+  \;=\; \frobn{\tensor{X} - \hat{\tensor{X}}}^2
+  \;=\; \sum_{i_1, \ldots, i_N}
+        \bigl(x_{i_1\cdots i_N} - \hat{x}_{i_1\cdots i_N}\bigr)^2.
+  \label{eq:loss_frobenius}
+\end{equation}
+This loss is smooth and convex in each factor separately,
+enabling closed-form ALS updates.
+When the noise is i.i.d.\ Gaussian, the Frobenius minimizer is the
+maximum likelihood estimator.
+Its sensitivity to large residuals, however, makes it non-robust to outliers.
+
+\paragraph{$\ell_1$ loss.}
+\begin{equation}
+  \mathcal{L}_1(\tensor{X}, \hat{\tensor{X}})
+  \;=\; \onenorm{\tensor{X} - \hat{\tensor{X}}}
+  \;=\; \sum_{i_1, \ldots, i_N}
+        \bigl|x_{i_1\cdots i_N} - \hat{x}_{i_1\cdots i_N}\bigr|.
+  \label{eq:loss_l1}
+\end{equation}
+Minimizing $\mathcal{L}_1$ corresponds to maximum likelihood estimation
+under a Laplace noise model and yields a positive breakdown point,
+making it robust to sparse outliers.
+The loss is convex but \emph{non-smooth} at zero; its subdifferential is
+$\partial|\cdot| = \sign(\cdot)$, which precludes direct use of
+standard least-squares solvers.
+
+\paragraph{Huber loss.}
+The Huber loss~\cite{huber1964robust} interpolates smoothly between
+$\ell_2$ (near zero) and $\ell_1$ (in the tails):
+\begin{equation}
+  \rho_\delta(r)
+  \;=\; \begin{cases}
+          \dfrac{1}{2} r^2
+            & \text{if } |r| \leq \delta, \\[8pt]
+          \delta \!\left(|r| - \dfrac{\delta}{2}\right)
+            & \text{if } |r| > \delta,
+        \end{cases}
+  \label{eq:huber}
+\end{equation}
+with threshold $\delta > 0$.
+The aggregate loss is
+$\mathcal{L}_H = \sum_{i_1,\ldots,i_N} \rho_\delta(x_{i_1\cdots i_N}
+- \hat{x}_{i_1\cdots i_N})$.
+Being everywhere differentiable, $\mathcal{L}_H$ admits gradient-based
+optimization without subgradient complications.
+
+\paragraph{Summary.}
+Table~\ref{tab:losses} summarizes the three losses with respect to
+statistical interpretation, smoothness, and optimization strategy.
+
+\begin{table}[h]
+  \centering
+  \caption{Comparison of reconstruction losses.}
+  \label{tab:losses}
+  \begin{tabular}{lccc}
+    \toprule
+    Loss & Noise model & Smoothness & Optimization \\
+    \midrule
+    $\mathcal{L}_F$ (Frobenius)
+      & Gaussian      & $C^\infty$       & ALS (closed-form) \\
+    $\mathcal{L}_1$ ($\ell_1$)
+      & Laplace       & non-smooth at 0  & IRLS / subgradient \\
+    $\mathcal{L}_H$ (Huber)
+      & Gaussian + outliers & $C^1$      & Gradient descent \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% % ============================================================
+% %  sections/chapter_02_ko.tex
+% %  2장: 수학적 배경
+% % ============================================================
+
+% \section{수학적 배경}
+% \label{sec:background}
+
+% 이 장에서는 보고서 전반에 걸쳐 사용되는 표기법과 수학적 기초를 정립한다.
+% 텐서 대수, 두 가지 분해 방법(Tucker 및 CP),
+% 고차 특이값 분해(HOSVD), 그리고 각 최적화 문제를 정의하는
+% 재구성 손실 함수를 순서대로 소개한다.
+
+% % ------------------------------------------------------------
+% \subsection{텐서 표기법}
+% \label{subsec:notation}
+% % ------------------------------------------------------------
+
+% 텐서(tensor) $\tensor{X} \in \R^{I_1 \times I_2 \times \cdots \times I_N}$는
+% $N$-방향(way) 배열이며, 인덱스 $(i_1, i_2, \ldots, i_N)$에 해당하는
+% 원소를 $x_{i_1 i_2 \cdots i_N}$으로 표기한다.
+% 본 보고서에서는 다음의 표기 규약을 일관되게 사용한다:
+% 캘리그래피 문자($\tensor{X}$)는 텐서, 굵은 대문자($\mat{U}$)는 행렬,
+% 굵은 소문자($\vect{u}$)는 벡터, 이탤릭체 소문자($\lambda, r$)는 스칼라를 나타낸다.
+
+% \paragraph{프로베니우스 노름(Frobenius norm).}
+% 텐서의 프로베니우스 노름은 행렬의 경우를 원소별로 일반화한 것이다:
+% \begin{equation}
+%   \frobn{\tensor{X}}
+%   \;=\; \sqrt{\,\sum_{i_1=1}^{I_1} \cdots \sum_{i_N=1}^{I_N}
+%                x_{i_1 \cdots i_N}^2\,}
+%   \;=\; \sqrt{\langle \tensor{X},\, \tensor{X} \rangle}.
+%   \label{eq:frobenius}
+% \end{equation}
+% 프로베니우스 노름은 \emph{유니터리 불변성(unitary invariance)}을 만족한다.
+% 임의의 직교 행렬 $\mat{Q}_n$에 대해,
+% \begin{equation}
+%   \frobn{\tensor{X} \times_1 \mat{Q}_1 \times_2 \mat{Q}_2 \cdots
+%          \times_N \mat{Q}_N}
+%   \;=\; \frobn{\tensor{X}}.
+%   \label{eq:unitary_inv}
+% \end{equation}
+% 이 성질은 \ref{subsec:hosvd}절에서 설명하는 HOSVD와 HOOI의
+% 정확성을 보장하는 핵심 근거가 된다.
+
+% \paragraph{모드-$n$ 전개(mode-$n$ unfolding, matricization).}
+% \emph{모드-$n$ 전개} $\unfold{X}{n} \in \R^{I_n \times \prod_{k \neq n} I_k}$는
+% $\tensor{X}$의 원소를 모드-$n$ 인덱스가 행(row)에,
+% 나머지 인덱스가 사전 순서(lexicographic order)에 따라 열(column)에
+% 배치되도록 재배열한 것이다~\cite{kolda2009tensor}.
+% 구체적으로,
+% \begin{equation}
+%   \bigl[\unfold{X}{n}\bigr]_{i_n,\, j}
+%   \;=\; x_{i_1 i_2 \cdots i_N},
+%   \qquad
+%   j = 1 + \sum_{\substack{k=1\\k\neq n}}^{N}
+%           (i_k - 1)\prod_{\substack{m=1\\m\neq n}}^{k-1} I_m.
+%   \label{eq:unfolding}
+% \end{equation}
+
+% \paragraph{모드-$n$ 곱(mode-$n$ product).}
+% $\tensor{X} \in \R^{I_1 \times \cdots \times I_N}$와
+% $\mat{U} \in \R^{J \times I_n}$의 \emph{모드-$n$ 곱}은
+% \begin{equation}
+%   y_{i_1 \cdots i_{n-1}\, j\, i_{n+1} \cdots i_N}
+%   \;=\; \sum_{i_n=1}^{I_n} x_{i_1 \cdots i_N}\, u_{j i_n}
+%   \label{eq:mode_product}
+% \end{equation}
+% 으로 정의되는 텐서
+% $\tensor{Y} = \tensor{X} \times_n \mat{U}
+% \in \R^{I_1 \times \cdots \times I_{n-1} \times J
+% \times I_{n+1} \times \cdots \times I_N}$이다.
+% 행렬 형태로 나타내면,
+% \begin{equation}
+%   \bigl(\tensor{X} \times_n \mat{U}\bigr)_{(n)}
+%   \;=\; \mat{U}\, \unfold{X}{n},
+%   \label{eq:mode_product_mat}
+% \end{equation}
+% 즉 모드-$n$ 곱은 일반적인 행렬 곱셈으로 환원된다.
+% 이 관계식은 \ref{subsec:als}절의 ALS 갱신 규칙을 유도하는 기초가 된다.
+
+% \paragraph{모드 곱의 교환 법칙.}
+% $m \neq n$인 경우,
+% \begin{equation}
+%   \tensor{X} \times_m \mat{A} \times_n \mat{B}
+%   \;=\; \tensor{X} \times_n \mat{B} \times_m \mat{A}.
+%   \label{eq:mode_commute}
+% \end{equation}
+% 이 교환 법칙은 ALS 부분 문제(subproblem) 유도에 반복적으로 사용된다.
+
+% % ------------------------------------------------------------
+% \subsection{Tucker 분해}
+% \label{subsec:tucker}
+% % ------------------------------------------------------------
+
+% \begin{definition}[Tucker 분해]
+%   $\tensor{X} \in \R^{I_1 \times \cdots \times I_N}$의
+%   랭크-$(r_1, \ldots, r_N)$ Tucker 근사는
+%   \begin{equation}
+%     \hat{\tensor{X}}
+%     \;=\; \tensor{G}
+%           \times_1 \mat{U}^{(1)}
+%           \times_2 \mat{U}^{(2)}
+%           \cdots
+%           \times_N \mat{U}^{(N)}
+%     \label{eq:tucker}
+%   \end{equation}
+%   이며, 여기서 $\tensor{G} \in \R^{r_1 \times \cdots \times r_N}$는
+%   \emph{코어 텐서(core tensor)},
+%   각 $\mat{U}^{(n)} \in \R^{I_n \times r_n}$는
+%   열이 정규직교(orthonormal)인 \emph{인수 행렬(factor matrix)}이다.
+%   즉 ${\mat{U}^{(n)}}^\top \mat{U}^{(n)} = \mat{I}_{r_n}$이다.
+% \end{definition}
+
+% $\hat{\tensor{X}}$의 모드-$n$ 전개는 다음과 같다:
+% \begin{equation}
+%   \hat{\mat{X}}_{(n)}
+%   \;=\; \mat{U}^{(n)}\, \mat{G}_{(n)}
+%         \Bigl(\mat{U}^{(N)} \kron \cdots \kron \mat{U}^{(n+1)}
+%               \kron \mat{U}^{(n-1)} \kron \cdots \kron \mat{U}^{(1)}
+%         \Bigr)^{\!\top},
+%   \label{eq:tucker_matricized}
+% \end{equation}
+% 여기서 $\kron$은 크로네커 곱(Kronecker product)이다.
+% 식~\eqref{eq:tucker_matricized}는 ALS가 활용하는 최소제곱 구조를 명시적으로 드러낸다.
+
+% \paragraph{파라미터 수와 압축률.}
+% Tucker 형식이 저장하는 파라미터 수는
+% \begin{equation}
+%   P_{\mathrm{Tucker}}
+%   \;=\; \prod_{n=1}^{N} r_n
+%         \;+\; \sum_{n=1}^{N} I_n r_n
+%   \label{eq:tucker_params}
+% \end{equation}
+% 이며, 원본 텐서 대비 압축률은
+% \begin{equation}
+%   \rho
+%   \;=\; \frac{\displaystyle\prod_{n=1}^{N} I_n}
+%              {P_{\mathrm{Tucker}}}
+%   \label{eq:tucker_ratio}
+% \end{equation}
+% 이다.
+% 크기 $H \times W \times 3$인 컬러 이미지에 Tucker 랭크 $(r, r, 3)$을
+% 적용하면 $\rho = 3HW\,/\,(3r^2 + Hr + Wr + 3r)$이며,
+% 대형 이미지에서 $r$이 작을수록 $\rho \approx HW/r^2$에 가까워진다.
+
+% \paragraph{절단 SVD와의 관계.}
+% $N=2$이면 Tucker는 절단 SVD로 환원된다:
+% $\hat{\mat{X}} = \mat{U} \mat{\Sigma}_r \mat{V}^\top$,
+% $\tensor{G} = \mat{\Sigma}_r$,
+% $\mat{U}^{(1)} = \mat{U}$, $\mat{U}^{(2)} = \mat{V}$.
+% Tucker 분해는 저랭크 행렬 근사의 자연스러운 다중선형(multilinear) 일반화이다.
+
+% % ------------------------------------------------------------
+% \subsection{CP 분해}
+% \label{subsec:cp}
+% % ------------------------------------------------------------
+
+% \begin{definition}[CP 분해]
+%   $\tensor{X}$의 랭크-$R$ CANDECOMP/PARAFAC (CP) 근사는
+%   \begin{equation}
+%     \hat{\tensor{X}}
+%     \;=\; \sum_{r=1}^{R} \lambda_r\,
+%           \vect{a}_r^{(1)} \circ \vect{a}_r^{(2)} \circ \cdots \circ
+%           \vect{a}_r^{(N)}
+%     \label{eq:cp}
+%   \end{equation}
+%   이며, 여기서 $\circ$는 외적(outer product),
+%   $\|\vect{a}_r^{(n)}\|_2 = 1$, $\lambda_r \geq 0$이다.
+% \end{definition}
+
+% CP는 코어 텐서가 $R \times \cdots \times R$ 크기의
+% \emph{초대각(superdiagonal)} 텐서로 제한된 Tucker 분해로 볼 수 있다.
+% CP 형식은 $R \bigl(\sum_{n=1}^{N} I_n + 1\bigr)$개의 파라미터를 저장하므로
+% 동일한 $R$에서 Tucker보다 더 간결하지만,
+% 정확한 CP 랭크를 결정하는 문제는 일반적으로 NP-난해(NP-hard)이다~\cite{kolda2009tensor}.
+
+% \begin{remark}[CP 퇴화(CP degeneracy)]
+%   Tucker와 달리, 차수 $N \geq 3$인 텐서의 최적 랭크-$R$ CP 근사는
+%   존재하지 않을 수 있다 --- 목적 함수의 하한이 항상 달성되지는 않는다~\cite{kolda2009tensor}.
+%   Tucker 분해는 인수 행렬을 정규직교로 제약함으로써 이 문제를 회피한다.
+% \end{remark}
+
+% % ------------------------------------------------------------
+% \subsection{고차 특이값 분해 (HOSVD)}
+% \label{subsec:hosvd}
+% % ------------------------------------------------------------
+
+% \begin{definition}[HOSVD~\cite{de2000multilinear}]
+%   $\tensor{X}$의 \emph{고차 특이값 분해(Higher-Order SVD, HOSVD)}는
+%   각 인수 행렬을 독립적으로 계산한다:
+%   \begin{equation}
+%     \mat{U}^{(n)}
+%     \;\coloneqq\;
+%     \unfold{X}{n}\text{의 주요 } r_n\text{개 좌특이벡터},
+%     \quad n = 1, \ldots, N,
+%     \label{eq:hosvd_factors}
+%   \end{equation}
+%   코어 텐서는
+%   \begin{equation}
+%     \tensor{G}
+%     \;=\; \tensor{X}
+%           \times_1 {\mat{U}^{(1)}}^\top
+%           \times_2 {\mat{U}^{(2)}}^\top
+%           \cdots
+%           \times_N {\mat{U}^{(N)}}^\top
+%     \label{eq:hosvd_core}
+%   \end{equation}
+%   으로 설정한다.
+% \end{definition}
+
+% HOSVD는 닫힌 형태(closed form)로 계산되며 결정론적 초기화를 제공한다.
+% 그러나 각 모드의 인수 행렬을 독립적으로 최적화하므로
+% 전역 최적 Tucker 근사가 아니다.
+
+% \begin{proposition}[HOSVD 오차 상한~\cite{de2000multilinear}]
+%   랭크-$(r_1, \ldots, r_N)$ HOSVD 근사 $\hat{\tensor{X}}_{\mathrm{HOSVD}}$에 대해,
+%   \begin{equation}
+%     \frobn{\tensor{X} - \hat{\tensor{X}}_{\mathrm{HOSVD}}}^2
+%     \;\leq\;
+%     \sum_{n=1}^{N} \sum_{i=r_n+1}^{I_n} \sigma_i^{(n)2},
+%     \label{eq:hosvd_bound}
+%   \end{equation}
+%   여기서 $\sigma_i^{(n)}$는 $\unfold{X}{n}$의 $i$번째 특이값이다.
+% \end{proposition}
+
+% 식~\eqref{eq:hosvd_bound}은 \ref{sec:experiments}절의 랭크 스윕(rank sweep)
+% 실험에서 이론적 기준값으로 사용된다.
+% 실험에서 측정한 좌변과, 특이값 스펙트럼으로 계산한 우변을 비교하여
+% 이론 예측의 정확도를 검증한다.
+
+% % ------------------------------------------------------------
+% \subsection{재구성 손실 함수}
+% \label{subsec:losses}
+% % ------------------------------------------------------------
+
+% 일반적인 근사 문제는
+% \begin{equation}
+%   \min_{\tensor{G},\, \{\mat{U}^{(n)}\}}\;
+%   \mathcal{L}\!\left(\tensor{X},\, \hat{\tensor{X}}\right)
+%   \label{eq:general_opt}
+% \end{equation}
+% 로 표현된다.
+% 손실 함수 $\mathcal{L}$의 선택은 해의 통계적 해석과 최적화 알고리즘의
+% 복잡도를 동시에 결정한다.
+% 본 연구에서는 세 가지 손실 함수를 비교한다.
+
+% \paragraph{프로베니우스 제곱 손실.}
+% \begin{equation}
+%   \mathcal{L}_F(\tensor{X}, \hat{\tensor{X}})
+%   \;=\; \frobn{\tensor{X} - \hat{\tensor{X}}}^2
+%   \;=\; \sum_{i_1, \ldots, i_N}
+%         \bigl(x_{i_1\cdots i_N} - \hat{x}_{i_1\cdots i_N}\bigr)^2.
+%   \label{eq:loss_frobenius}
+% \end{equation}
+% 이 손실은 각 인수에 대해 매끄럽고(smooth) 볼록(convex)하여
+% ALS의 닫힌 형태 갱신을 가능하게 한다.
+% 잡음이 i.i.d.\ 가우시안(Gaussian)일 때, 프로베니우스 최소화는
+% 최대 우도 추정(maximum likelihood estimation)과 동치이다.
+% 그러나 큰 잔차에 민감하여 이상치(outlier)에 취약하다.
+
+% \paragraph{$\ell_1$ 손실.}
+% \begin{equation}
+%   \mathcal{L}_1(\tensor{X}, \hat{\tensor{X}})
+%   \;=\; \onenorm{\tensor{X} - \hat{\tensor{X}}}
+%   \;=\; \sum_{i_1, \ldots, i_N}
+%         \bigl|x_{i_1\cdots i_N} - \hat{x}_{i_1\cdots i_N}\bigr|.
+%   \label{eq:loss_l1}
+% \end{equation}
+% $\mathcal{L}_1$ 최소화는 라플라스(Laplace) 잡음 모델에서의
+% 최대 우도 추정에 해당하며, 양의 분해점(breakdown point)을 가지므로
+% 희소 이상치에 강인(robust)하다.
+% 그러나 원점에서 \emph{비매끄러운(non-smooth)} 함수로,
+% 편미분이 $\partial|\cdot| = \sign(\cdot)$이므로
+% 표준 최소제곱 풀이기를 직접 적용할 수 없다.
+
+% \paragraph{Huber 손실.}
+% Huber 손실~\cite{huber1964robust}은 원점 근방에서 $\ell_2$,
+% 꼬리 부분에서 $\ell_1$처럼 작동하도록 매끄럽게 결합한 함수이다:
+% \begin{equation}
+%   \rho_\delta(r)
+%   \;=\; \begin{cases}
+%           \dfrac{1}{2} r^2
+%             & |r| \leq \delta\text{인 경우,} \\[8pt]
+%           \delta \!\left(|r| - \dfrac{\delta}{2}\right)
+%             & |r| > \delta\text{인 경우,}
+%         \end{cases}
+%   \label{eq:huber}
+% \end{equation}
+% 여기서 $\delta > 0$은 전환 임계값이다.
+% 집합 손실은
+% $\mathcal{L}_H = \sum_{i_1,\ldots,i_N}
+% \rho_\delta(x_{i_1\cdots i_N} - \hat{x}_{i_1\cdots i_N})$이다.
+% $\mathcal{L}_H$는 모든 점에서 미분 가능하므로
+% 부분기울기(subgradient) 없이 경사 하강법을 직접 적용할 수 있다.
+
+% \paragraph{요약.}
+% 표~\ref{tab:losses}는 세 손실 함수를 통계적 해석, 매끄러움 및
+% 최적화 전략의 관점에서 비교한다.
+
+% \begin{table}[h]
+%   \centering
+%   \caption{재구성 손실 함수 비교.}
+%   \label{tab:losses}
+%   \begin{tabular}{lccc}
+%     \toprule
+%     손실 함수 & 잡음 모델 & 매끄러움 & 최적화 방법 \\
+%     \midrule
+%     $\mathcal{L}_F$ (Frobenius)
+%       & 가우시안       & $C^\infty$          & ALS (닫힌 형태) \\
+%     $\mathcal{L}_1$ ($\ell_1$)
+%       & 라플라스       & 원점에서 비매끄러움 & IRLS / 부분기울기 \\
+%     $\mathcal{L}_H$ (Huber)
+%       & 가우시안 + 이상치 & $C^1$            & 경사 하강법 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
