@@ -10,7 +10,7 @@ Usage:
 
 import argparse
 import numpy as np
-from donghyun_kim.prototype.cp_als import rank2_approximation, frobenius_norm, reconstruct
+from cp_als import rank2_approximation, frobenius_norm, reconstruct
 
 
 def print_tensor(T, name="T"):
@@ -31,8 +31,8 @@ def run_demo(T, label=""):
     T_prime, factors, abs_err, rel_err = rank2_approximation(T, n_restarts=10, random_state=0)
 
     print(f"\n--- Result ---")
-    print(f"  ||T - T'||_F  = {abs_err:.6f}")
-    print(f"  ||T - T'||_F / ||T||_F = {rel_err:.6f}  ({rel_err*100:.2f}%)")
+    print(f"  ||T - T'||_F        = {abs_err:.6f}")
+    print(f"  ||T - T'||_F / ||T||_F = {rel_err*100:.4f}%")
     print(f"\nFactor matrices (rank-2):")
     for i, (f, name) in enumerate(zip(factors, ["A", "B", "C"])):
         print(f"  {name} (shape {f.shape}):")

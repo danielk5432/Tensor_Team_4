@@ -1,0 +1,422 @@
+% ============================================================
+%  poster.tex  —  TP406 Team 4
+%  Low-Rank Tensor Approximation: Rank-2 CP Decomposition
+%
+%  Compile on Overleaf (pdflatex) or:
+%    pdflatex poster.tex
+%
+%  Required packages (all standard in TeX Live / MiKTeX):
+%    beamer, beamerposter, amsmath, amssymb, booktabs, tikz,
+%    xcolor, enumitem, array
+% ============================================================
+
+\documentclass[final, 17pt]{beamer}
+
+\usepackage[size=a0, orientation=portrait, scale=1.2]{beamerposter}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{lmodern}
+
+% ─────────────── colour palette ────────────────────────────
+\definecolor{mainblue}{RGB}{17, 55, 100}
+\definecolor{accentblue}{RGB}{41, 105, 176}
+\definecolor{lightblue}{RGB}{210, 228, 248}
+\definecolor{boxbg}{RGB}{245, 248, 253}
+\definecolor{darkgray}{RGB}{50, 50, 50}
+\definecolor{okgreen}{RGB}{20, 120, 50}
+
+% ─────────────── beamer theme ──────────────────────────────
+\usetheme{default}
+\setbeamercolor{headline}{fg=white, bg=mainblue}
+\setbeamercolor{footline}{fg=white, bg=mainblue}
+\setbeamercolor{block title}{fg=white, bg=accentblue}
+\setbeamercolor{block body}{fg=darkgray, bg=boxbg}
+\setbeamerfont{block title}{size=\large, series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+
+\setbeamertemplate{block begin}{%
+  \vskip 0.6ex
+  \begin{beamercolorbox}[wd=\linewidth, rounded=true,
+      shadow=false, sep=8pt, center]{block title}
+    \usebeamerfont{block title}\insertblocktitle
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=\linewidth, rounded=true,
+      shadow=false, sep=10pt]{block body}%
+    \setlength{\parskip}{5pt}%
+}
+\setbeamertemplate{block end}{%
+  \end{beamercolorbox}
+  \vskip 0.8ex
+}
+
+% headline
+\setbeamertemplate{headline}{%
+  \begin{beamercolorbox}[wd=\paperwidth, ht=11cm, sep=0pt]{headline}
+    \vspace{1.5cm}
+    \begin{center}
+      {\fontsize{60}{70}\selectfont\bfseries\color{white}
+        Low-Rank Tensor Approximation over
+        $\mathbb{C}^{3}\!\otimes\!\mathbb{C}^{3}\!\otimes\!\mathbb{C}^{3}$}\\[1cm]
+      {\fontsize{34}{40}\selectfont\color{lightblue}
+        Donghyun Kim \quad Beomjun Chung \quad Suho Cho \quad Sabin Park}\\[0.5cm]
+      {\fontsize{26}{32}\selectfont\color{lightblue}
+        TP406 — Geometry of Tensors and Applications \quad|\quad Team 4 \quad|\quad 2026}
+    \end{center}
+    \vspace{1cm}
+  \end{beamercolorbox}
+}
+
+% footline
+\setbeamertemplate{footline}{%
+  \begin{beamercolorbox}[wd=\paperwidth, ht=3cm, sep=0.8cm]{footline}
+    \hfill
+    {\fontsize{20}{24}\selectfont\color{lightblue}
+      TP406 Team 4 \quad|\quad
+      Rank-2 CP Approximation of $3\!\times\!3\!\times\!3$ Tensors \quad|\quad 2026}
+    \hspace{1.5cm}
+  \end{beamercolorbox}
+}
+
+% ─────────────── math macros ───────────────────────────────
+\newcommand{\normF}[1]{\left\|#1\right\|_F}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Seg}{\mathrm{Seg}}
+
+% ─────────────── helper: shaded info box ───────────────────
+\newcommand{\infobox}[1]{%
+  \begin{tikzpicture}
+    \node[fill=lightblue, rounded corners=5pt, inner sep=10pt,
+          text width=0.85\linewidth]{%
+      \small #1};
+  \end{tikzpicture}%
+}
+
+% ─────────────── helper: code box ──────────────────────────
+\newcommand{\codebox}[1]{%
+  \begin{tikzpicture}
+    \node[fill=black!8, rounded corners=4pt, inner sep=10pt,
+          text width=0.85\linewidth]{%
+      \ttfamily\small #1};
+  \end{tikzpicture}%
+}
+
+% column width (three equal columns with gaps)
+\newlength{\colw}
+\setlength{\colw}{0.305\paperwidth}
+
+% ============================================================
+\begin{document}
+\begin{frame}[t]
+\vspace{1.8cm}
+
+\begin{columns}[t, totalwidth=0.97\paperwidth]
+
+% ══════════════════════════════════════════════════════════
+%  COLUMN 1 — Problem + Math Background
+% ══════════════════════════════════════════════════════════
+\begin{column}{\colw}
+
+\begin{block}{1.\ Problem Statement}
+  Find the best \textbf{rank-2} approximation of any tensor
+  $T \in \C^3\!\otimes\!\C^3\!\otimes\!\C^3$:
+  \[
+    T' \;=\; \underset{\hat{T}\,\in\,\sigma_2^0(\Seg(\C^3\times\C^3\times\C^3))}
+             {\arg\min}
+             \;\normF{T - \hat{T}}
+  \]
+
+  where $\sigma_2^0$ is the set of \emph{strict} rank-2 tensors:
+  \[
+    T' = \mathbf{a}_1\otimes\mathbf{b}_1\otimes\mathbf{c}_1
+       + \mathbf{a}_2\otimes\mathbf{b}_2\otimes\mathbf{c}_2,
+    \quad \mathbf{a}_i,\mathbf{b}_i,\mathbf{c}_i \in \C^3
+  \]
+
+  \infobox{%
+    \textbf{Segre variety.}
+    $\Seg(\C^3\!\times\!\C^3\!\times\!\C^3)$ is the variety of rank-1 tensors.
+    Its $r$-th secant variety $\sigma_r$ is the closure of the set of tensors
+    of rank $\leq r$.
+    We seek $T' \in \sigma_2^0$, the open dense part of $\sigma_2$.
+  }
+\end{block}
+
+\begin{block}{2.\ Distance: Frobenius Norm}
+  \textbf{Definition} (entry-wise generalization to tensors):
+  \[
+    \normF{T}
+    = \sqrt{\;\sum_{i,j,k=1}^{3} |T_{ijk}|^2\;}
+    = \sqrt{\langle T,\, T\rangle}
+  \]
+
+  \textbf{Why Frobenius?}
+  \begin{itemize}[leftmargin=1.4em, itemsep=3pt]
+    \item CP decomposition algorithms are \emph{derived} from this norm
+          — ALS subproblems become standard least-squares problems
+    \item \emph{Unitary invariance}:
+          $\normF{T \times_n Q_n} = \normF{T}$ for unitary $Q_n$
+    \item $\normF{\cdot}^2$ is smooth $\Rightarrow$ clean gradient derivations
+  \end{itemize}
+
+  \vspace{0.4em}
+  \textbf{Relative error} used in all tests:
+  \[
+    \varepsilon_{\mathrm{rel}}
+    = \frac{\normF{T - T'}}{\normF{T}} \times 100\%
+  \]
+  \begin{tabular}{ll}
+    Numerator   & $\normF{T-T'}$: residual (how wrong) \\
+    Denominator & $\normF{T}$: scale of original tensor \\
+  \end{tabular}
+\end{block}
+
+\begin{block}{3.\ Geometric Interpretation}
+  \textbf{Ambient space:} $\C^3\!\otimes\!\C^3\!\otimes\!\C^3 \cong \C^{27}$.\\[0.4em]
+  \textbf{Rank-2 variety} (expected affine dimension):
+  \[
+    \dim\sigma_2 \approx 2\times\underbrace{(3+3+3-2)}_{\dim\,\Seg}+1 = 15
+    \;\;(\text{proj.}) \;\Rightarrow\; 16 \;\;(\text{affine})
+  \]
+
+  \vspace{0.5em}
+  \begin{tikzpicture}
+    \node[fill=lightblue, rounded corners=5pt, inner sep=8pt,
+          text width=0.88\linewidth]{%
+      \begin{center}
+      \begin{tikzpicture}[scale=0.9]
+        % full space
+        \fill[accentblue!25, rounded corners=3pt] (0,1.6) rectangle (19,2.6);
+        \node at (9.5,2.1) {\small Full space: $\C^{27}$ (27 dim)};
+        % rank-2 part
+        \fill[accentblue, rounded corners=3pt] (0,0.1) rectangle (11.4,1.2);
+        \fill[gray!35, rounded corners=3pt] (11.4,0.1) rectangle (19,1.2);
+        \node[white] at (5.7,0.65) {\small $\sigma_2 \approx 16$ dim};
+        \node at (15.2,0.65) {\small residual $\approx 11$ dim};
+      \end{tikzpicture}
+      \end{center}
+    };
+  \end{tikzpicture}
+
+  \vspace{0.4em}
+  \small A random tensor in $\C^{27}$ has ${\approx}11$ dimensions
+  orthogonal to $\sigma_2$ — directly explaining the 40--50\% error
+  observed for generic tensors.
+\end{block}
+
+\end{column}
+
+% gap
+\begin{column}{0.02\paperwidth}\end{column}
+
+% ══════════════════════════════════════════════════════════
+%  COLUMN 2 — Algorithm
+% ══════════════════════════════════════════════════════════
+\begin{column}{\colw}
+
+\begin{block}{4.\ CP Decomposition}
+  Represent $T$ as a sum of rank-1 tensors:
+  \[
+    T' \;=\; \sum_{r=1}^{R}
+             \mathbf{a}_r\otimes\mathbf{b}_r\otimes\mathbf{c}_r
+  \]
+
+  \textbf{Factor matrices:}
+  \[
+    A = [\mathbf{a}_1|\cdots|\mathbf{a}_R]\in\C^{3\times R},\;
+    B \in\C^{3\times R},\;
+    C \in\C^{3\times R}
+  \]
+
+  \textbf{Mode-$n$ unfolding} $T_{(n)}$ rearranges $T$ into a matrix
+  (mode-$n$ index $\to$ rows). The CP structure reads:
+  \begin{align*}
+    T_{(0)} &= A\,(C \odot B)^\top \\
+    T_{(1)} &= B\,(C \odot A)^\top \\
+    T_{(2)} &= C\,(B \odot A)^\top
+  \end{align*}
+  where $\odot$ is the \textbf{Khatri--Rao product}
+  (column-wise Kronecker): $(A\odot B)_r = \mathbf{a}_r\otimes\mathbf{b}_r$.
+\end{block}
+
+\begin{block}{5.\ CP-ALS Algorithm}
+  \textbf{Objective:} minimise $\normF{T - T'}^2$ over $A,B,C$.
+
+  \vspace{0.4em}
+  Each mode's subproblem (others fixed) is a \textbf{least-squares} problem.
+  Normal equations give the closed-form update:
+  \begin{align*}
+    A &\leftarrow T_{(0)}\;\overline{K_{BC}}\;\overline{G}^{-1} \\
+    B &\leftarrow T_{(1)}\;\overline{K_{AC}}\;\overline{G}^{-1} \\
+    C &\leftarrow T_{(2)}\;\overline{K_{AB}}\;\overline{G}^{-1}
+  \end{align*}
+  where:
+  \begin{itemize}[leftmargin=1.4em, itemsep=3pt]
+    \item $K_{BC} = C \odot B$ \quad (Khatri--Rao product)
+    \item $G = (A^\dagger A)\circledast(B^\dagger B)\circledast(C^\dagger C)$
+          \quad (Hadamard product of Gram matrices)
+    \item $\overline{(\cdot)}$ = complex conjugate
+          (for real $T$: reduces to standard ALS)
+  \end{itemize}
+
+  \vspace{0.5em}
+  \textbf{Convergence criterion:}
+
+  \vspace{0.3em}
+  \infobox{%
+    \textbf{1 iteration} $= A \to B \to C$ (one full cycle).\\[4pt]
+    After each iteration, compute
+    $\varepsilon_k = \normF{T-T'_k}/\normF{T}$.\\[4pt]
+    \textbf{Stop} if $|\varepsilon_{k-1} - \varepsilon_k| < \tau$
+    \quad($\tau = 10^{-8}$, default).\\[4pt]
+    Hard cap at $k_{\max} = 2000$ iterations.\\[4pt]
+    Repeat $n_{\mathrm{restart}} = 10$ times with different
+    random initialisations; keep the result with smallest $\varepsilon$.
+  }
+\end{block}
+
+\begin{block}{6.\ Implementation}
+  \textbf{Platform:} Python 3.13 · NumPy only (no TensorLy dependency)
+
+  \vspace{0.5em}
+  \begin{tabular}{>{\ttfamily\small}l p{0.55\linewidth}}
+    \toprule
+    \normalfont\textbf{File} & \textbf{Role} \\
+    \midrule
+    cp\_als.py     & CP-ALS core; real \& complex tensors \\
+    main.py        & 4-case demo with factor printout \\
+    test\_suite.py & 3-category test with statistics \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.7em}
+  \textbf{Usage:}
+
+  \vspace{0.3em}
+  \codebox{%
+    from cp\_als import rank2\_approximation\\[3pt]
+    T\_prime, factors, abs\_err, rel\_err = \textbackslash\\
+    \quad rank2\_approximation(T, n\_restarts=10)\\[3pt]
+    A, B, C = factors\quad\# each shape (3, 2)
+  }
+
+  \vspace{0.5em}
+  \codebox{%
+    \$ python test\_suite.py --trials 10\\
+    \$ python test\_suite.py --complex\\
+    \$ python test\_suite.py --noise-levels 0.01 0.1 1.0
+  }
+\end{block}
+
+\end{column}
+
+% gap
+\begin{column}{0.02\paperwidth}\end{column}
+
+% ══════════════════════════════════════════════════════════
+%  COLUMN 3 — Results + Conclusions
+% ══════════════════════════════════════════════════════════
+\begin{column}{\colw}
+
+\begin{block}{7.\ Test 1: Exact Rank-2 (Sanity Check)}
+  $T$ is an exact rank-2 tensor; ALS must recover it to near-zero error.
+
+  \vspace{0.5em}
+  \begin{tabular}{lccc}
+    \toprule
+    & Pass rate & Mean $\varepsilon_{\mathrm{rel}}$
+    & Max $\varepsilon_{\mathrm{rel}}$ \\
+    \midrule
+    Real    & \textcolor{okgreen}{\textbf{10/10}}
+            & ${\sim}10^{-6}$\% & ${\sim}10^{-5}$\% \\
+    Complex & \textcolor{okgreen}{\textbf{10/10}}
+            & ${\sim}10^{-5}$\% & ${\sim}10^{-4}$\% \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \infobox{\textbf{Conclusion:} ALS recovers exact rank-2 tensors to
+    floating-point precision in all 10/10 trials.}
+\end{block}
+
+\begin{block}{8.\ Test 2: Noisy Rank-2 (Stability)}
+  $T = T_{\mathrm{clean}} + \varepsilon\cdot N$,\;
+  $\normF{N}=1$,\; $T_{\mathrm{clean}}$ is exact rank-2.
+
+  \vspace{0.5em}
+  \begin{tabular}{ccc}
+    \toprule
+    Noise $\varepsilon$ & Mean $\varepsilon_{\mathrm{rel}}$ (real)
+                        & vs.\ noise level \\
+    \midrule
+    1.00\% & 0.19\% & $\ll\varepsilon$ \\
+    5.00\% & 0.95\% & $<\varepsilon$ \\
+   10.00\% & 1.89\% & $<\varepsilon$ \\
+   30.00\% & 5.67\% & $<\varepsilon$ \\
+   50.00\% & 9.30\% & $<\varepsilon$ \\
+  100.00\% & 17.0\% & $<\varepsilon$ \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \infobox{\textbf{Conclusion:} Error is always \emph{smaller} than the
+    noise level and scales proportionally — the algorithm is numerically
+    stable near the rank-2 manifold.}
+\end{block}
+
+\begin{block}{9.\ Test 3: Generic Random Tensor}
+  $T \sim \mathcal{N}(0,1)^{3\times3\times3}$, no structure assumed.
+
+  \vspace{0.5em}
+  \begin{tabular}{lcc}
+    \toprule
+    & Real & Complex \\
+    \midrule
+    Mean $\varepsilon_{\mathrm{rel}}$   & 45.5\% & 50.3\% \\
+    Range & 31.8--58.9\% & 40.2--59.1\% \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.4em}
+  \infobox{%
+    \textbf{Why 40--50\%?}
+    $\sigma_2$ occupies ${\approx}16$ of 27 dimensions.
+    A random tensor has ${\approx}11$ components outside $\sigma_2$
+    that cannot be captured by any rank-2 approximation.
+    This is a \emph{geometric limitation}, not an algorithmic failure.
+  }
+\end{block}
+
+\begin{block}{10.\ Conclusions}
+  \begin{itemize}[leftmargin=1.4em, itemsep=5pt]
+    \item \textbf{Correctness:} CP-ALS with Frobenius norm recovers
+          exact rank-2 tensors to machine precision.
+    \item \textbf{Stability:} Approximation error scales linearly with
+          noise and remains below the noise level.
+    \item \textbf{Generic case:} 40--50\% residual for random tensors
+          is a geometric consequence of $\dim\sigma_2 \approx 16 < 27$.
+    \item \textbf{Norm choice:} Frobenius norm yields closed-form ALS
+          updates and unitary invariance, consistent with the algebraic
+          geometry framework of the problem.
+  \end{itemize}
+\end{block}
+
+\begin{block}{11.\ Future Work}
+  \begin{itemize}[leftmargin=1.4em, itemsep=4pt]
+    \item Compare ALS with gradient-based methods (Adam, L-BFGS)
+    \item Investigate border rank: when does $T' \in \sigma_2^0$ vs.
+          only in $\overline{\sigma_2}$?
+    \item Quantify rank--quality tradeoff empirically (rank 3, 4)
+    \item Riemannian optimisation directly on $\sigma_2^0$
+  \end{itemize}
+\end{block}
+
+\end{column}
+
+\end{columns}
+
+\end{frame}
+\end{document}
