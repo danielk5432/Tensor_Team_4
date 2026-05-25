@@ -10,7 +10,7 @@ Usage:
 
 import argparse
 import numpy as np
-from cp_als import rank2_approximation, frobenius_norm, reconstruct
+from donghyun_kim.prototype.cp_als import rank2_approximation, frobenius_norm, reconstruct
 
 
 def print_tensor(T, name="T"):
