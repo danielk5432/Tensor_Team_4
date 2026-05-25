@@ -15,7 +15,7 @@ Usage:
 
 import argparse
 import numpy as np
-from donghyun_kim.prototype.cp_als import rank2_approximation, frobenius_norm
+from cp_als import rank2_approximation, frobenius_norm
 
 
 # ──────────────────────────────────────────────
@@ -44,12 +44,12 @@ def section(title):
     print(f"{'='*62}")
 
 
-def stats(values, label, unit=""):
-    arr = np.array(values)
+def stats(values, label):
+    arr = np.array(values) * 100  # convert to %
     print(f"  {label}:")
-    print(f"    mean = {arr.mean():.6f}{unit}")
-    print(f"    std  = {arr.std():.6f}{unit}")
-    print(f"    min  = {arr.min():.6f}{unit}   max = {arr.max():.6f}{unit}")
+    print(f"    mean = {arr.mean():.4f}%")
+    print(f"    std  = {arr.std():.4f}%")
+    print(f"    min  = {arr.min():.4f}%   max = {arr.max():.4f}%")
 
 
 # ──────────────────────────────────────────────
@@ -70,7 +70,7 @@ def test_exact_rank2(n_trials, is_complex, als_kwargs):
         abs_errors.append(abs_err)
         status = "OK" if rel_err < 1e-4 else "FAIL"
         print(f"  seed={seed:2d}  ||T-T'||_F = {abs_err:.2e}  "
-              f"rel = {rel_err:.2e}  ||T||_F = {T_norm:.3f}  [{status}]")
+              f"rel = {rel_err*100:.2e}%  ||T||_F = {T_norm:.3f}  [{status}]")
 
     n_pass = sum(e < 1e-4 for e in rel_errors)
     print(f"\n  Passed: {n_pass}/{n_trials}")
@@ -104,9 +104,9 @@ def test_noisy_rank2(n_trials, is_complex, noise_levels, als_kwargs):
             _, _, abs_err, rel_err = rank2_approximation(T, **als_kwargs)
             rel_errors.append(rel_err)
 
-        arr = np.array(rel_errors)
-        print(f"  noise={noise:.3f}  =>  rel_err  mean={arr.mean():.4f}  "
-              f"std={arr.std():.4f}  [expected ≲ {noise:.4f}]")
+        arr = np.array(rel_errors) * 100
+        print(f"  noise={noise:.3f}  =>  rel_err  mean={arr.mean():.2f}%  "
+              f"std={arr.std():.2f}%  [expected ≲ {noise*100:.2f}%]")
 
     print()
 
@@ -132,7 +132,7 @@ def test_random_tensor(n_trials, is_complex, als_kwargs):
         _, _, abs_err, rel_err = rank2_approximation(T, **als_kwargs)
         rel_errors.append(rel_err)
         print(f"  seed={seed:2d}  ||T-T'||_F = {abs_err:.4f}  "
-              f"rel = {rel_err:.4f}  ({rel_err*100:.1f}%)")
+              f"rel = {rel_err*100:.1f}%")
 
     stats(rel_errors, "Relative error")
     return rel_errors
