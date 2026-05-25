@@ -1,12 +1,18 @@
 Frobenius Norm에서부터 ALS 알고리즘이 유도되었다. 불가분의 관계 
 
 
---Paper_FrobeniusNormDefinition 에서의 주요 내용--
+코드 짤 때 R차원에서 시작하고 C로 넘어가거나, C에서부터 시작하거나 고민
+
+
+--FrobeniusNorm&ALSmethod_for_mathematical 에서의 주요 내용--
 형광펜으로 밑줄
 """2. Notation and Preliminaries 
+2.4. Matricization: Transforming a Tensor into a Matrix. Matrx
+2.6. Matrix Kronecker, Khatri-Rao, and Hadamard Products
+3. Tensor Rank and the CANDECONP/PARAFAC Decomposition
 3.4. Computing CP Decomposition"""
 
 
 --ALS 대안 알고리즘--
-(dGN, PMF3)는 성분 고정을 안 시키고 한 번에 최적화를 하지만 높은 메모리 및 연산 비용이 든다.
-(ASD)는 대수적으로 접근하지만 최종 솔류션의 정확도가 다른 알고리즘들에 비해 낮다. 
+(dGN, PMF3)는 성분 고정을 안 시키고 한 번에 최적화를 하고, solution에 가까워질수록 수렴속도가 기하급수적으로 빨라지는 Quadratic convergence 특성이 있음. 하지만 높은 메모리 및 연산 비용이 든다. (dGN은 수학적 방법론, PMF3는 노이즈가 있는 실제 데이터에 적합)
+(ASD)는 ALS랑 달리 차원을 flattening하지 않고 차원별로 수행. 정확도가 ALS에 비해 수학적으로 열등
