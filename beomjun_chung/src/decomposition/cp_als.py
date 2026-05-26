@@ -29,7 +29,6 @@ def _cp_reconstruct(weights: jnp.ndarray, factors: list) -> jnp.ndarray:
     subscripts = "r," + ",".join(f"{chr(ord('i') + n)}r" for n in range(N)) + "->" + indices
     return jnp.einsum(subscripts, weights, *factors)
 
-
 @partial(jax.jit, static_argnums=(2, 3))
 def _update_mode(tensor: jnp.ndarray, factors: list, n: int, rank: int):
     """CP-ALS inner update for mode n. JIT'd for efficiency."""
@@ -54,7 +53,6 @@ def _update_mode(tensor: jnp.ndarray, factors: list, n: int, rank: int):
     norms = jnp.where(norms > 0, norms, jnp.ones_like(norms))
     return A_new / norms[None, :], norms
 
-
 def _init_factors_svd(tensor: jnp.ndarray, rank: int) -> list:
     """Initialize factors using leading singular vectors of each mode unfolding."""
     factors = []
@@ -69,7 +67,6 @@ def _init_factors_svd(tensor: jnp.ndarray, rank: int) -> list:
             U = U[:, :rank]
         factors.append(U)
     return factors
-
 
 def decompose(
     tensor: jnp.ndarray,
@@ -117,7 +114,6 @@ def decompose(
         prev_error = error
 
     return CPResult(weights=weights, factors=factors), errors
-
 
 def reconstruct(result: CPResult) -> jnp.ndarray:
     return _cp_reconstruct(result.weights, result.factors)

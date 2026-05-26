@@ -31,7 +31,6 @@ def _update_factor(tensor: jnp.ndarray, factors: list, n: int, rank_n: int) -> j
     U, _, _ = jnp.linalg.svd(unfold(Y, n), full_matrices=False)
     return U[:, :rank_n]
 
-
 def decompose(
     tensor: jnp.ndarray,
     rank: list,
