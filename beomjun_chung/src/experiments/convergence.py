@@ -17,7 +17,6 @@ import jax.numpy as jnp
 from src.decomposition import hosvd, hooi, cp_als
 from src.utils.visualization import plot_error_curve
 
-
 _OUTPUT_DIR = Path(__file__).parent.parent.parent / "outputs" / "convergence"
 _TUCKER_RANK = [10, 10, 3]
 _CP_RANK = 10
