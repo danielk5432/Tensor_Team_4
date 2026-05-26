@@ -1,0 +1,720 @@
+% ============================================================
+%  sections/chapter_03.tex
+%  Section 3: Optimization Methods
+% ============================================================
+
+\section{Optimization Methods}
+\label{sec:optimization}
+
+The Tucker approximation problem~\eqref{eq:general_opt} is
+\emph{jointly non-convex} in the factor matrices
+$\{\mat{U}^{(n)}\}$ and the core tensor $\tensor{G}$.
+We study three algorithmic families that address this non-convexity in
+different ways: Alternating Least Squares (ALS) with its higher-order
+refinement HOOI for the Frobenius objective, Iteratively Reweighted Least
+Squares (IRLS) for the $\ell_1$ objective, and gradient-based methods
+for the Huber objective.
+
+% ------------------------------------------------------------
+\subsection{Alternating Least Squares and HOOI}
+\label{subsec:als}
+% ------------------------------------------------------------
+
+\paragraph{ALS principle.}
+Although $\mathcal{L}_F$ is jointly non-convex in all factors simultaneously,
+it is \emph{quadratic} --- and hence convex --- when all but one factor
+matrix are held fixed.
+ALS exploits this structure by cycling over the factors and solving each
+resulting least-squares problem exactly.
+
+\paragraph{Mode-$n$ subproblem.}
+Fix all factor matrices except $\mat{U}^{(n)}$ and define
+\begin{equation}
+  \mat{Z}^{(n)}
+  \;\coloneqq\;
+  \mat{G}_{(n)}
+  \!\left(
+    \mat{U}^{(N)} \kron \cdots \kron \mat{U}^{(n+1)}
+    \kron \mat{U}^{(n-1)} \kron \cdots \kron \mat{U}^{(1)}
+  \right)^{\!\top}
+  \;\in\; \R^{r_n \times \prod_{k\neq n} I_k}.
+  \label{eq:Z_factor}
+\end{equation}
+The objective reduces to
+\begin{equation}
+  \min_{\mat{U}^{(n)}} \;
+  \bigl\|\unfold{X}{n} - \mat{U}^{(n)} \mat{Z}^{(n)}\bigr\|_F^2,
+  \label{eq:als_subproblem}
+\end{equation}
+whose closed-form solution is
+\begin{equation}
+  \mat{U}^{(n)}
+  \;\leftarrow\;
+  \unfold{X}{n} \mat{Z}^{(n)\top}
+  \!\left(\mat{Z}^{(n)} \mat{Z}^{(n)\top}\right)^{-1}.
+  \label{eq:als_update}
+\end{equation}
+When the columns of $\mat{U}^{(n)}$ are additionally constrained to be
+orthonormal --- as in Tucker --- the optimal solution is the matrix of
+leading $r_n$ left singular vectors of $\unfold{X}{n} \mat{Z}^{(n)\top}$,
+making the matrix inverse unnecessary.
+
+\paragraph{HOOI algorithm.}
+Higher-Order Orthogonal Iteration (HOOI)~\cite{de2000best} applies ALS
+with orthonormal constraints.
+At each iteration, the contracted tensor
+\begin{equation}
+  \tensor{Y}^{(n)}
+  \;=\; \tensor{X}
+        \times_1 {\mat{U}^{(1)}}^\top
+        \cdots
+        \times_{n-1} {\mat{U}^{(n-1)}}^\top
+        \times_{n+1} {\mat{U}^{(n+1)}}^\top
+        \cdots
+        \times_N {\mat{U}^{(N)}}^\top
+  \label{eq:hooi_contracted}
+\end{equation}
+is formed (omitting mode $n$), and the update is
+\begin{equation}
+  \mat{U}^{(n)}
+  \;\leftarrow\;
+  \text{leading-}r_n\text{ left singular vectors of }
+  \mat{Y}^{(n)}_{(n)}.
+  \label{eq:hooi_update}
+\end{equation}
+After all factor matrices have converged, the core is recovered as
+\begin{equation}
+  \tensor{G}
+  \;=\; \tensor{X}
+        \times_1 {\mat{U}^{(1)}}^\top
+        \times_2 {\mat{U}^{(2)}}^\top
+        \cdots
+        \times_N {\mat{U}^{(N)}}^\top.
+  \label{eq:hooi_core}
+\end{equation}
+
+Algorithm~\ref{alg:hooi} summarizes the full procedure.
+
+\begin{algorithm}[t]
+  \caption{HOOI for Tucker decomposition (Frobenius norm)}
+  \label{alg:hooi}
+  \KwIn{Tensor $\tensor{X} \in \R^{I_1 \times \cdots \times I_N}$,
+        target rank $(r_1, \ldots, r_N)$,
+        tolerance $\varepsilon > 0$,
+        max iterations $T$}
+  \KwOut{Core $\tensor{G}$, factor matrices $\{\mat{U}^{(n)}\}$}
+
+  \BlankLine
+  \tcp{Initialization via HOSVD}
+  \For{$n \leftarrow 1$ \KwTo $N$}{
+    $\mat{U}^{(n)} \leftarrow$ leading-$r_n$ left singular vectors of
+    $\unfold{X}{n}$\;
+  }
+  \BlankLine
+  \tcp{Iterative refinement}
+  \For{$t \leftarrow 1$ \KwTo $T$}{
+    \For{$n \leftarrow 1$ \KwTo $N$}{
+      $\tensor{Y} \leftarrow
+        \tensor{X} \times_{k \neq n} {\mat{U}^{(k)}}^\top$\;
+      $\mat{U}^{(n)} \leftarrow$
+        leading-$r_n$ left singular vectors of $\unfold{Y}{n}$\;
+    }
+    $\tensor{G} \leftarrow
+      \tensor{X} \times_1 {\mat{U}^{(1)}}^\top \cdots
+                 \times_N {\mat{U}^{(N)}}^\top$\;
+    $e_t \leftarrow
+      \frobn{\tensor{X} - \tensor{G} \times_1 \mat{U}^{(1)}
+             \cdots \times_N \mat{U}^{(N)}}$\;
+    \lIf{$|e_t - e_{t-1}| < \varepsilon$}{\textbf{break}}
+  }
+  \Return $\tensor{G},\; \{\mat{U}^{(n)}\}$\;
+\end{algorithm}
+
+\paragraph{Convergence.}
+Each HOOI iteration decreases the Frobenius reconstruction error
+monotonically, because each mode-$n$ update is an exact minimizer of the
+subproblem~\eqref{eq:als_subproblem} given the other factors.
+The sequence $\{e_t\}$ is therefore non-increasing and bounded below by
+zero, guaranteeing convergence of the \emph{objective value}.
+However, convergence of the \emph{iterates} $\{\mat{U}^{(n)}_t\}$ to a
+stationary point is not guaranteed in general due to non-convexity
+\cite{de2000best}.
+
+\paragraph{Computational cost.}
+The dominant cost per HOOI iteration is $N$ truncated SVDs of matrices of
+size $I_n \times \prod_{k \neq n} r_k$, giving a per-iteration complexity
+of $O\!\left(N \cdot I \cdot r^{N-1}\right)$ for a balanced tensor with
+$I_n = I$ and $r_n = r$.
+
+% ------------------------------------------------------------
+\subsection{Iteratively Reweighted Least Squares (IRLS) for $\ell_1$-Tucker}
+\label{subsec:irls}
+% ------------------------------------------------------------
+
+\paragraph{Motivation.}
+Direct minimization of $\mathcal{L}_1$ via subgradient methods converges
+at rate $O(1/\sqrt{t})$, which is slow in practice.
+IRLS sidesteps non-smoothness by solving a sequence of \emph{weighted}
+Frobenius problems, each of which admits a standard ALS step.
+
+\paragraph{IRLS reweighting.}
+Let $r_{i_1 \cdots i_N} = x_{i_1 \cdots i_N} - \hat{x}_{i_1 \cdots i_N}$
+be the current residual tensor.
+Define element-wise weights
+\begin{equation}
+  w_{i_1 \cdots i_N}^{(t)}
+  \;=\; \frac{1}{\bigl|r_{i_1 \cdots i_N}^{(t)}\bigr| + \varepsilon},
+  \quad \varepsilon > 0 \text{ (smoothing parameter)},
+  \label{eq:irls_weights}
+\end{equation}
+and the \emph{weighted} Frobenius problem
+\begin{equation}
+  \min_{\tensor{G},\, \{\mat{U}^{(n)}\}} \;
+  \sum_{i_1, \ldots, i_N}
+  w_{i_1 \cdots i_N}^{(t)}
+  \bigl(x_{i_1 \cdots i_N} - \hat{x}_{i_1 \cdots i_N}\bigr)^2.
+  \label{eq:irls_weighted}
+\end{equation}
+The connection to $\ell_1$ follows from the identity
+\begin{equation}
+  |r| = w \cdot r^2
+  \quad \text{when } w = 1/|r|,
+  \label{eq:irls_identity}
+\end{equation}
+which shows that minimizing~\eqref{eq:irls_weighted} with fixed weights
+is a majorization step for $\mathcal{L}_1$.
+
+\paragraph{Weighted ALS update.}
+Let $\tensor{W}^{(t)}$ be the weight tensor and define the
+element-wise product $\tilde{\tensor{X}} = \tensor{W}^{(t)} \odot \tensor{X}$.
+The weighted mode-$n$ subproblem is
+\begin{equation}
+  \min_{\mat{U}^{(n)}} \;
+  \bigl\|\tilde{\mat{X}}_{(n)} - \mat{U}^{(n)} \tilde{\mat{Z}}^{(n)}\bigr\|_F^2,
+  \label{eq:irls_subproblem}
+\end{equation}
+which is solved by~\eqref{eq:als_update} applied to the weighted
+unfolding $\tilde{\mat{X}}_{(n)}$.
+
+Algorithm~\ref{alg:irls} presents the full IRLS procedure.
+
+\begin{algorithm}[t]
+  \caption{IRLS for $\ell_1$-Tucker decomposition}
+  \label{alg:irls}
+  \KwIn{Tensor $\tensor{X}$, rank $(r_1, \ldots, r_N)$,
+        outer iterations $T$, inner ALS steps $K$,
+        smoothing $\varepsilon > 0$}
+  \KwOut{Core $\tensor{G}$, factor matrices $\{\mat{U}^{(n)}\}$}
+
+  \BlankLine
+  $\tensor{G}, \{\mat{U}^{(n)}\} \leftarrow \mathrm{HOOI}(\tensor{X},
+    \mathbf{r})$
+    \tcp*{warm start from Frobenius solution}
+
+  \For{$t \leftarrow 1$ \KwTo $T$}{
+    $\hat{\tensor{X}} \leftarrow
+      \tensor{G} \times_1 \mat{U}^{(1)} \cdots \times_N \mat{U}^{(N)}$\;
+    $\tensor{R} \leftarrow \tensor{X} - \hat{\tensor{X}}$
+    \tcp*{residual}
+    $\tensor{W} \leftarrow 1\,/\,(|\tensor{R}| + \varepsilon)$
+    \tcp*{element-wise weights~\eqref{eq:irls_weights}}
+
+    \For{$k \leftarrow 1$ \KwTo $K$}{
+      \tcp{One pass of weighted ALS}
+      \For{$n \leftarrow 1$ \KwTo $N$}{
+        $\mat{U}^{(n)} \leftarrow$
+          weighted ALS update~\eqref{eq:irls_subproblem}\;
+      }
+      $\tensor{G} \leftarrow
+        \tensor{X} \times_1 {\mat{U}^{(1)}}^\top \cdots
+                   \times_N {\mat{U}^{(N)}}^\top$\;
+    }
+  }
+  \Return $\tensor{G},\; \{\mat{U}^{(n)}\}$\;
+\end{algorithm}
+
+\paragraph{Choice of $\varepsilon$.}
+The parameter $\varepsilon$ prevents division by zero and controls the
+approximation of $|\cdot|$ near the origin.
+Smaller $\varepsilon$ gives a closer approximation to the true $\ell_1$
+loss but may cause numerical instability.
+A practical schedule starts with $\varepsilon = 10^{-1}$ and halves it
+every few outer iterations.
+
+% ------------------------------------------------------------
+\subsection{Gradient-Based Optimization for Huber-Tucker}
+\label{subsec:gradient}
+% ------------------------------------------------------------
+
+\paragraph{Motivation.}
+The Huber loss $\mathcal{L}_H$ is everywhere differentiable, enabling
+direct application of first- and second-order gradient methods.
+We use this objective to compare gradient-based optimization with
+ALS/IRLS in terms of convergence speed and final reconstruction quality.
+
+\paragraph{Gradient derivation.}
+Let $\tensor{R} = \tensor{X} - \hat{\tensor{X}}$ be the residual and
+define the element-wise Huber pseudo-residual
+\begin{equation}
+  \psi_\delta(r)
+  \;=\; \frac{\partial \rho_\delta(r)}{\partial r}
+  \;=\; \begin{cases}
+          r            & |r| \leq \delta, \\
+          \delta\,\sign(r) & |r| > \delta.
+        \end{cases}
+  \label{eq:huber_grad}
+\end{equation}
+The gradient of $\mathcal{L}_H$ with respect to $\hat{\tensor{X}}$ is
+\begin{equation}
+  \frac{\partial \mathcal{L}_H}{\partial \hat{\tensor{X}}}
+  \;=\; -\bm{\Psi}_\delta(\tensor{R}),
+  \label{eq:loss_grad}
+\end{equation}
+where $\bm{\Psi}_\delta$ is applied element-wise.
+By the chain rule and the mode-$n$ product structure,
+\begin{equation}
+  \frac{\partial \mathcal{L}_H}{\partial \mat{U}^{(n)}}
+  \;=\; -\bm{\Psi}_\delta(\tensor{R})_{(n)}\,
+         \left(
+           \mat{U}^{(N)} \kron \cdots \kron \widehat{\mat{U}^{(n)}}
+           \kron \cdots \kron \mat{U}^{(1)}
+         \right)
+         \mat{G}_{(n)}^\top,
+  \label{eq:grad_U}
+\end{equation}
+where $\widehat{\cdot}$ denotes omission of the $n$-th factor.
+The gradient with respect to the core is
+\begin{equation}
+  \frac{\partial \mathcal{L}_H}{\partial \mat{G}_{(n)}}
+  \;=\; -{\mat{U}^{(n)}}^\top\,
+         \bm{\Psi}_\delta(\tensor{R})_{(n)}\,
+         \left(
+           \mat{U}^{(N)} \kron \cdots \kron \mat{U}^{(1)}
+         \right).
+  \label{eq:grad_G}
+\end{equation}
+
+\paragraph{Optimization algorithm.}
+We employ Adam~\cite{kingma2015adam} with parameters
+$\alpha = 10^{-3}$, $\beta_1 = 0.9$, $\beta_2 = 0.999$.
+All factor matrices are initialized from HOSVD to ensure a fair comparison
+with HOOI.
+The Huber threshold is set to $\delta = 0.1 \cdot \max|\tensor{R}_0|$,
+where $\tensor{R}_0$ is the initial residual, so that $\delta$ adapts
+to the scale of each tensor.
+
+\paragraph{Implementation note.}
+Equations~\eqref{eq:grad_U}--\eqref{eq:grad_G} can be evaluated without
+autograd by computing mode-$n$ products explicitly, which avoids the
+memory overhead of storing a computation graph over the full tensor.
+For moderate-sized tensors (up to $256 \times 256 \times 3$), this
+manual gradient implementation is preferred.
+
+% ------------------------------------------------------------
+\subsection{Comparison of Methods}
+\label{subsec:opt_comparison}
+% ------------------------------------------------------------
+
+Table~\ref{tab:opt_comparison} summarizes the three optimization methods
+along the axes most relevant to this project.
+
+\begin{table}[h]
+  \centering
+  \caption{Comparison of optimization methods for Tucker approximation.}
+  \label{tab:opt_comparison}
+  \begin{tabular}{lcccc}
+    \toprule
+    Method & Objective & Convergence & Per-iter.\ cost & Hyperparams \\
+    \midrule
+    ALS / HOOI
+      & $\mathcal{L}_F$
+      & Monotone $\downarrow$, local
+      & $O(N I r^{N-1})$
+      & none \\
+    IRLS
+      & $\mathcal{L}_1$
+      & Monotone (outer), local
+      & $O(N I r^{N-1})$
+      & $\varepsilon$, $K$ \\
+    Adam (gradient)
+      & $\mathcal{L}_H$
+      & Non-monotone, local
+      & $O(N I r^{N-1})$
+      & $\alpha, \delta, \beta_{1,2}$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+      \paragraph{Non-convexity and local minima.}
+        All three methods are susceptible to local minima because the feasible set $\mathcal{M}_r$ is non-convex. To assess sensitivity to initialization, Section~\ref{sec:experiments} repeats each experiment with five random orthogonal initializations and reports the distribution of final reconstruction errors.\\
+
+      \paragraph{Numerical stability of ALS.}
+        The normal equation in~\eqref{eq:als_update} requires inverting $\mat{Z}^{(n)} \mat{Z}^{(n)\top}$. When this matrix is ill-conditioned --- which occurs when factor matrices are nearly linearly dependent --- a Tikhonov regularization term $\mu \mat{I}$ is added:
+
+        \begin{equation}
+          \mat{U}^{(n)} \leftarrow
+          \unfold{X}{n} \mat{Z}^{(n)\top} \left(\mat{Z}^{(n)} \mat{Z}^{(n)\top} + \mu \mat{I}\right)^{-1}, \quad \mu = 10^{-8}
+        \end{equation}
+
+        In our experiments, the orthonormal constraint in HOOI makes this regularization unnecessary.\\
+
+% % ============================================================
+% %  sections/chapter_03_ko.tex
+% %  3장: 최적화 방법
+% % ============================================================
+
+% \section{최적화 방법}
+% \label{sec:optimization}
+
+% Tucker 근사 문제~\eqref{eq:general_opt}는 인수 행렬 $\{\mat{U}^{(n)}\}$와
+% 코어 텐서 $\tensor{G}$에 대해 \emph{결합 비볼록(jointly non-convex)}이다.
+% 본 장에서는 이 비볼록성을 서로 다른 방식으로 다루는 세 가지 알고리즘군을
+% 소개한다: 프로베니우스 목적 함수를 위한 교대 최소제곱법(ALS) 및 그
+% 고차 정제인 HOOI, $\ell_1$ 목적 함수를 위한 반복 재가중 최소제곱법(IRLS),
+% 그리고 Huber 목적 함수를 위한 경사 기반 방법.
+
+% % ------------------------------------------------------------
+% \subsection{교대 최소제곱법과 HOOI}
+% \label{subsec:als}
+% % ------------------------------------------------------------
+
+% \paragraph{ALS 원리.}
+% $\mathcal{L}_F$는 모든 인수를 동시에 고려하면 결합 비볼록이지만,
+% 하나의 인수 행렬만 고정을 풀고 나머지를 고정하면
+% \emph{이차(quadratic)} 함수 --- 즉 볼록 함수 --- 가 된다.
+% ALS는 이 구조를 활용하여 인수를 순환하면서 각각의 최소제곱 문제를
+% 정확하게 풀어나간다.
+
+% \paragraph{모드-$n$ 부분 문제.}
+% $\mat{U}^{(n)}$을 제외한 모든 인수 행렬을 고정하고 다음을 정의한다:
+% \begin{equation}
+%   \mat{Z}^{(n)}
+%   \;\coloneqq\;
+%   \mat{G}_{(n)}
+%   \!\left(
+%     \mat{U}^{(N)} \kron \cdots \kron \mat{U}^{(n+1)}
+%     \kron \mat{U}^{(n-1)} \kron \cdots \kron \mat{U}^{(1)}
+%   \right)^{\!\top}
+%   \;\in\; \R^{r_n \times \prod_{k\neq n} I_k}.
+%   \label{eq:Z_factor}
+% \end{equation}
+% 목적 함수는 다음으로 환원된다:
+% \begin{equation}
+%   \min_{\mat{U}^{(n)}} \;
+%   \bigl\|\unfold{X}{n} - \mat{U}^{(n)} \mat{Z}^{(n)}\bigr\|_F^2,
+%   \label{eq:als_subproblem}
+% \end{equation}
+% 이의 닫힌 형태 해는
+% \begin{equation}
+%   \mat{U}^{(n)}
+%   \;\leftarrow\;
+%   \unfold{X}{n} \mat{Z}^{(n)\top}
+%   \!\left(\mat{Z}^{(n)} \mat{Z}^{(n)\top}\right)^{-1}.
+%   \label{eq:als_update}
+% \end{equation}
+% $\mat{U}^{(n)}$의 열이 정규직교로 추가 제약되는 Tucker의 경우,
+% 최적해는 $\unfold{X}{n} \mat{Z}^{(n)\top}$의 주요 $r_n$개
+% 좌특이벡터이며, 이 경우 행렬 역연산이 불필요하다.
+
+% \paragraph{HOOI 알고리즘.}
+% 고차 직교 반복(HOOI)~\cite{de2000best}은 정규직교 제약 조건 하의
+% ALS를 적용한다.
+% 각 반복에서 수축 텐서(contracted tensor)
+% \begin{equation}
+%   \tensor{Y}^{(n)}
+%   \;=\; \tensor{X}
+%         \times_1 {\mat{U}^{(1)}}^\top
+%         \cdots
+%         \times_{n-1} {\mat{U}^{(n-1)}}^\top
+%         \times_{n+1} {\mat{U}^{(n+1)}}^\top
+%         \cdots
+%         \times_N {\mat{U}^{(N)}}^\top
+%   \label{eq:hooi_contracted}
+% \end{equation}
+% 를 구성하고(모드 $n$ 제외), 갱신은
+% \begin{equation}
+%   \mat{U}^{(n)}
+%   \;\leftarrow\;
+%   \mat{Y}^{(n)}_{(n)}\text{의 주요 }r_n\text{개 좌특이벡터}
+%   \label{eq:hooi_update}
+% \end{equation}
+% 으로 이루어진다.
+% 모든 인수 행렬이 수렴한 후 코어는 다음으로 복원된다:
+% \begin{equation}
+%   \tensor{G}
+%   \;=\; \tensor{X}
+%         \times_1 {\mat{U}^{(1)}}^\top
+%         \times_2 {\mat{U}^{(2)}}^\top
+%         \cdots
+%         \times_N {\mat{U}^{(N)}}^\top.
+%   \label{eq:hooi_core}
+% \end{equation}
+
+% 알고리즘~\ref{alg:hooi}에 전체 절차를 정리하였다.
+
+% \begin{algorithm}[t]
+%   \caption{Tucker 분해를 위한 HOOI (프로베니우스 노름)}
+%   \label{alg:hooi}
+%   \KwIn{텐서 $\tensor{X} \in \R^{I_1 \times \cdots \times I_N}$,
+%         목표 랭크 $(r_1, \ldots, r_N)$,
+%         허용 오차 $\varepsilon > 0$,
+%         최대 반복 횟수 $T$}
+%   \KwOut{코어 $\tensor{G}$, 인수 행렬 $\{\mat{U}^{(n)}\}$}
+
+%   \BlankLine
+%   \tcp{HOSVD로 초기화}
+%   \For{$n \leftarrow 1$ \KwTo $N$}{
+%     $\mat{U}^{(n)} \leftarrow$ $\unfold{X}{n}$의 주요-$r_n$ 좌특이벡터\;
+%   }
+%   \BlankLine
+%   \tcp{반복 정제}
+%   \For{$t \leftarrow 1$ \KwTo $T$}{
+%     \For{$n \leftarrow 1$ \KwTo $N$}{
+%       $\tensor{Y} \leftarrow
+%         \tensor{X} \times_{k \neq n} {\mat{U}^{(k)}}^\top$\;
+%       $\mat{U}^{(n)} \leftarrow$
+%         $\unfold{Y}{n}$의 주요-$r_n$ 좌특이벡터\;
+%     }
+%     $\tensor{G} \leftarrow
+%       \tensor{X} \times_1 {\mat{U}^{(1)}}^\top \cdots
+%                  \times_N {\mat{U}^{(N)}}^\top$\;
+%     $e_t \leftarrow
+%       \frobn{\tensor{X} - \tensor{G} \times_1 \mat{U}^{(1)}
+%              \cdots \times_N \mat{U}^{(N)}}$\;
+%     \lIf{$|e_t - e_{t-1}| < \varepsilon$}{\textbf{종료}}
+%   }
+%   \Return $\tensor{G},\; \{\mat{U}^{(n)}\}$\;
+% \end{algorithm}
+
+% \paragraph{수렴성.}
+% HOOI의 각 반복은 프로베니우스 재구성 오차를 단조 감소시킨다.
+% 각 모드-$n$ 갱신이 나머지 인수를 고정한 상태에서
+% 부분 문제~\eqref{eq:als_subproblem}의 정확한 최소화기이기 때문이다.
+% 따라서 수열 $\{e_t\}$는 단조 비증가이며 0으로 하한이 있어
+% \emph{목적 함수값}의 수렴이 보장된다.
+% 그러나 비볼록성으로 인해 \emph{반복점} $\{\mat{U}^{(n)}_t\}$의
+% 정류점(stationary point) 수렴은 일반적으로 보장되지 않는다~\cite{de2000best}.
+
+% \paragraph{계산 복잡도.}
+% HOOI 반복당 지배적인 비용은 크기 $I_n \times \prod_{k \neq n} r_k$인
+% 행렬에 대한 $N$번의 절단 SVD이다.
+% $I_n = I$, $r_n = r$인 균형 텐서에서 반복당 복잡도는
+% $O\!\left(N \cdot I \cdot r^{N-1}\right)$이다.
+
+% % ------------------------------------------------------------
+% \subsection{$\ell_1$-Tucker를 위한 반복 재가중 최소제곱법 (IRLS)}
+% \label{subsec:irls}
+% % ------------------------------------------------------------
+
+% \paragraph{동기.}
+% 부분기울기(subgradient) 방법을 통한 $\mathcal{L}_1$의 직접 최소화는
+% $O(1/\sqrt{t})$의 수렴률을 가지며 실제로 느리다.
+% IRLS는 비매끄러움을 우회하기 위해 일련의 \emph{가중} 프로베니우스 문제를
+% 반복적으로 풀며, 각각의 문제는 표준 ALS 단계로 해결된다.
+
+% \paragraph{IRLS 재가중.}
+% 현재 잔차 텐서를
+% $r_{i_1 \cdots i_N} = x_{i_1 \cdots i_N} - \hat{x}_{i_1 \cdots i_N}$로
+% 정의하고, 원소별 가중치를
+% \begin{equation}
+%   w_{i_1 \cdots i_N}^{(t)}
+%   \;=\; \frac{1}{\bigl|r_{i_1 \cdots i_N}^{(t)}\bigr| + \varepsilon},
+%   \quad \varepsilon > 0 \text{ (평활화 파라미터)}
+%   \label{eq:irls_weights}
+% \end{equation}
+% 로 설정하면, \emph{가중} 프로베니우스 문제는
+% \begin{equation}
+%   \min_{\tensor{G},\, \{\mat{U}^{(n)}\}} \;
+%   \sum_{i_1, \ldots, i_N}
+%   w_{i_1 \cdots i_N}^{(t)}
+%   \bigl(x_{i_1 \cdots i_N} - \hat{x}_{i_1 \cdots i_N}\bigr)^2
+%   \label{eq:irls_weighted}
+% \end{equation}
+% 가 된다.
+% $\ell_1$과의 연결은 항등식
+% \begin{equation}
+%   |r| = w \cdot r^2 \quad (w = 1/|r|\text{일 때})
+%   \label{eq:irls_identity}
+% \end{equation}
+% 에서 비롯된다. 즉, 가중치를 고정하고~\eqref{eq:irls_weighted}를 최소화하는
+% 것은 $\mathcal{L}_1$에 대한 우세화(majorization) 단계이다.
+
+% \paragraph{가중 ALS 갱신.}
+% $\tensor{W}^{(t)}$를 가중치 텐서, $\tilde{\tensor{X}} = \tensor{W}^{(t)} \odot \tensor{X}$를
+% 원소별 곱으로 정의하면, 가중 모드-$n$ 부분 문제는
+% \begin{equation}
+%   \min_{\mat{U}^{(n)}} \;
+%   \bigl\|\tilde{\mat{X}}_{(n)} - \mat{U}^{(n)} \tilde{\mat{Z}}^{(n)}\bigr\|_F^2
+%   \label{eq:irls_subproblem}
+% \end{equation}
+% 이며, 식~\eqref{eq:als_update}를 가중 전개 $\tilde{\mat{X}}_{(n)}$에
+% 적용하여 풀 수 있다.
+
+% 알고리즘~\ref{alg:irls}에 전체 IRLS 절차를 정리하였다.
+
+% \begin{algorithm}[t]
+%   \caption{$\ell_1$-Tucker 분해를 위한 IRLS}
+%   \label{alg:irls}
+%   \KwIn{텐서 $\tensor{X}$, 랭크 $(r_1, \ldots, r_N)$,
+%         외부 반복 $T$, 내부 ALS 단계 $K$,
+%         평활화 $\varepsilon > 0$}
+%   \KwOut{코어 $\tensor{G}$, 인수 행렬 $\{\mat{U}^{(n)}\}$}
+
+%   \BlankLine
+%   $\tensor{G}, \{\mat{U}^{(n)}\} \leftarrow \mathrm{HOOI}(\tensor{X}, \mathbf{r})$
+%     \tcp*{프로베니우스 해로 웜 스타트}
+
+%   \For{$t \leftarrow 1$ \KwTo $T$}{
+%     $\hat{\tensor{X}} \leftarrow
+%       \tensor{G} \times_1 \mat{U}^{(1)} \cdots \times_N \mat{U}^{(N)}$\;
+%     $\tensor{R} \leftarrow \tensor{X} - \hat{\tensor{X}}$
+%       \tcp*{잔차}
+%     $\tensor{W} \leftarrow 1\,/\,(|\tensor{R}| + \varepsilon)$
+%       \tcp*{원소별 가중치~\eqref{eq:irls_weights}}
+
+%     \For{$k \leftarrow 1$ \KwTo $K$}{
+%       \tcp{가중 ALS 1 패스}
+%       \For{$n \leftarrow 1$ \KwTo $N$}{
+%         $\mat{U}^{(n)} \leftarrow$
+%           가중 ALS 갱신~\eqref{eq:irls_subproblem}\;
+%       }
+%       $\tensor{G} \leftarrow
+%         \tensor{X} \times_1 {\mat{U}^{(1)}}^\top \cdots
+%                    \times_N {\mat{U}^{(N)}}^\top$\;
+%     }
+%   }
+%   \Return $\tensor{G},\; \{\mat{U}^{(n)}\}$\;
+% \end{algorithm}
+
+% \paragraph{$\varepsilon$ 선택.}
+% $\varepsilon$은 0으로의 나눗셈을 방지하고 원점 근방에서 $|\cdot|$의
+% 근사 정도를 조절한다.
+% $\varepsilon$이 작을수록 진정한 $\ell_1$ 손실에 가까워지지만
+% 수치 불안정의 위험이 증가한다.
+% 실용적인 스케줄로는 $\varepsilon = 10^{-1}$에서 시작하여
+% 몇 번의 외부 반복마다 절반으로 줄이는 방법을 사용한다.
+
+% % ------------------------------------------------------------
+% \subsection{Huber-Tucker를 위한 경사 기반 최적화}
+% \label{subsec:gradient}
+% % ------------------------------------------------------------
+
+% \paragraph{동기.}
+% Huber 손실 $\mathcal{L}_H$는 모든 점에서 미분 가능하므로
+% 1차 및 2차 경사 방법을 직접 적용할 수 있다.
+% 이 목적 함수를 사용하여 ALS/IRLS와 경사 기반 최적화를
+% 수렴 속도 및 최종 재구성 품질 측면에서 비교한다.
+
+% \paragraph{경사 유도.}
+% $\tensor{R} = \tensor{X} - \hat{\tensor{X}}$를 잔차라 하고
+% 원소별 Huber 유사잔차를
+% \begin{equation}
+%   \psi_\delta(r)
+%   \;=\; \frac{\partial \rho_\delta(r)}{\partial r}
+%   \;=\; \begin{cases}
+%           r                    & |r| \leq \delta\text{인 경우,} \\
+%           \delta\,\sign(r) & |r| > \delta\text{인 경우}
+%         \end{cases}
+%   \label{eq:huber_grad}
+% \end{equation}
+% 로 정의한다.
+% $\mathcal{L}_H$의 $\hat{\tensor{X}}$에 대한 경사는
+% \begin{equation}
+%   \frac{\partial \mathcal{L}_H}{\partial \hat{\tensor{X}}}
+%   \;=\; -\bm{\Psi}_\delta(\tensor{R})
+%   \label{eq:loss_grad}
+% \end{equation}
+% 이며, 연쇄 법칙과 모드-$n$ 곱 구조로부터
+% \begin{equation}
+%   \frac{\partial \mathcal{L}_H}{\partial \mat{U}^{(n)}}
+%   \;=\; -\bm{\Psi}_\delta(\tensor{R})_{(n)}\,
+%          \left(
+%            \mat{U}^{(N)} \kron \cdots \kron \widehat{\mat{U}^{(n)}}
+%            \kron \cdots \kron \mat{U}^{(1)}
+%          \right)
+%          \mat{G}_{(n)}^\top
+%   \label{eq:grad_U}
+% \end{equation}
+% ($\widehat{\cdot}$는 $n$번째 인수의 생략을 의미),
+% 코어에 대한 경사는
+% \begin{equation}
+%   \frac{\partial \mathcal{L}_H}{\partial \mat{G}_{(n)}}
+%   \;=\; -{\mat{U}^{(n)}}^\top\,
+%          \bm{\Psi}_\delta(\tensor{R})_{(n)}\,
+%          \left(
+%            \mat{U}^{(N)} \kron \cdots \kron \mat{U}^{(1)}
+%          \right)
+%   \label{eq:grad_G}
+% \end{equation}
+% 이다.
+
+% \paragraph{최적화 알고리즘.}
+% Adam~\cite{kingma2015adam} 옵티마이저를 사용하며,
+% 파라미터는 $\alpha = 10^{-3}$, $\beta_1 = 0.9$, $\beta_2 = 0.999$로 설정한다.
+% HOOI와의 공정한 비교를 위해 모든 인수 행렬은 HOSVD로 초기화한다.
+% Huber 임계값은 $\delta = 0.1 \cdot \max|\tensor{R}_0|$로 설정하여
+% 각 텐서의 스케일에 맞게 적응시킨다.
+
+% \paragraph{구현 참고.}
+% 식~\eqref{eq:grad_U}--\eqref{eq:grad_G}은 모드-$n$ 곱을 명시적으로
+% 계산함으로써 자동 미분(autograd) 없이 평가할 수 있다.
+% 이 방식은 전체 텐서에 대한 계산 그래프 저장에 따른 메모리 오버헤드를
+% 피할 수 있어, 중간 크기 텐서($256 \times 256 \times 3$ 이하)에서
+% 수동 경사 구현이 선호된다.
+
+% % ------------------------------------------------------------
+% \subsection{방법 비교}
+% \label{subsec:opt_comparison}
+% % ------------------------------------------------------------
+
+% 표~\ref{tab:opt_comparison}은 세 가지 최적화 방법을
+% 본 프로젝트에서 가장 관련 있는 축으로 비교한다.
+
+% \begin{table}[h]
+%   \centering
+%   \caption{Tucker 근사를 위한 최적화 방법 비교.}
+%   \label{tab:opt_comparison}
+%   \begin{tabular}{lcccc}
+%     \toprule
+%     방법 & 목적 함수 & 수렴 특성 & 반복당 비용 & 하이퍼파라미터 \\
+%     \midrule
+%     ALS / HOOI
+%       & $\mathcal{L}_F$
+%       & 단조 $\downarrow$, 국소
+%       & $O(N I r^{N-1})$
+%       & 없음 \\
+%     IRLS
+%       & $\mathcal{L}_1$
+%       & 단조 (외부), 국소
+%       & $O(N I r^{N-1})$
+%       & $\varepsilon$, $K$ \\
+%     Adam (경사)
+%       & $\mathcal{L}_H$
+%       & 비단조, 국소
+%       & $O(N I r^{N-1})$
+%       & $\alpha, \delta, \beta_{1,2}$ \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+% \paragraph{비볼록성과 국소 최솟값.}
+% 세 방법 모두 실행 가능 집합 $\mathcal{M}_r$의 비볼록성으로 인해
+% 국소 최솟값에 수렴할 수 있다.
+% 초기화 민감도를 평가하기 위해, \ref{sec:experiments}장에서는
+% 각 실험을 5개의 무작위 직교 초기화로 반복하고
+% 최종 재구성 오차의 분포를 보고한다.
+
+% \paragraph{ALS의 수치 안정성.}
+% 식~\eqref{eq:als_update}의 정규 방정식은
+% $\mat{Z}^{(n)} \mat{Z}^{(n)\top}$의 역행렬을 요구한다.
+% 인수 행렬이 거의 선형 종속에 가까워질 때 이 행렬이 불량 조건(ill-conditioned)이
+% 될 수 있으므로, Tikhonov 정규화 항 $\mu \mat{I}$을 추가한다:
+% \begin{equation}
+%   \mat{U}^{(n)}
+%   \;\leftarrow\;
+%   \unfold{X}{n} \mat{Z}^{(n)\top}
+%   \!\left(\mat{Z}^{(n)} \mat{Z}^{(n)\top} + \mu \mat{I}\right)^{-1},
+%   \quad \mu = 10^{-8}.
+%   \label{eq:als_tikhonov}
+% \end{equation}
+% 본 실험에서는 HOOI의 정규직교 제약 조건이 이 정규화를 불필요하게 만든다.

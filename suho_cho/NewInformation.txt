@@ -1,16 +1,13 @@
-Frobenius Norm에서부터 ALS 알고리즘이 유도되었다. 불가분의 관계 
-
-
-코드 짤 때 R차원에서 시작하고 C로 넘어가거나, C에서부터 시작하거나 고민
-
 
 --FrobeniusNorm&ALSmethod_for_mathematical 에서의 주요 내용--
-형광펜으로 밑줄
-"""2. Notation and Preliminaries 
+"""
+2. Notation and Preliminaries 
 2.4. Matricization: Transforming a Tensor into a Matrix. Matrx
 2.6. Matrix Kronecker, Khatri-Rao, and Hadamard Products
 3. Tensor Rank and the CANDECONP/PARAFAC Decomposition
-3.4. Computing CP Decomposition"""
+3.4. Computing CP Decomposition
+4.2. Computing the Tucker Decomposition
+"""
 
 
 --ALS 대안 알고리즘--

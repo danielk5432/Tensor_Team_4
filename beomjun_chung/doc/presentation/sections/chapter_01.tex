@@ -1,0 +1,138 @@
+\section{Introduction}
+    Digital images are conventionally stored and processed as three-dimensional arrays of shape $H \times W \times C$, where $H$ and $W$ denote the spatial dimensions and $C$ the number of color channels. Although matrix-based compression methods such as truncated Singular Value Decomposition (SVD) are well-established, they require either flattening the channel axis or processing each channel independently, thereby discarding inter-channel correlations that carry perceptually significant structure.\\
+
+    Tensor decomposition methods naturally preserve this multi-way structure. A \emph{tensor} $\mathcal{X} \in \mathbb{R}^{I_1 \times I_2 \times \cdots \times I_N}$ generalizes matrices to $N$ modes, and \emph{low-rank tensor approximation} seeks a compact representation $\hat{\mathcal{X}}$ such that
+
+    \begin{equation}
+        \hat{\mathcal{X}} \;=\; \arg\min_{\hat{\mathcal{X}} \in \mathcal{M}_r}
+        \mathcal{L}\!\left(\mathcal{X},\, \hat{\mathcal{X}}\right),
+        \label{eq:general_problem}
+    \end{equation}
+
+    \noindent where $\mathcal{M}_r$ denotes a suitable low-rank manifold and $\mathcal{L}$ is a reconstruction loss. The choice of $\mathcal{L}$ is consequential: the squared Frobenius norm $\|\cdot\|_F^2$ yields analytically tractable subproblems and is the standard baseline, yet it is sensitive to outliers and heavy-tailed noise. Alternative losses---the $\ell_1$ norm and the Huber loss---offer robustness at the cost of algorithmic complexity, motivating a comparative study.\\
+
+    \subsection*{Research Questions}
+        This project investigates the following questions:
+
+        \begin{enumerate}
+            \item \textbf{Decomposition structure.}
+                How do Tucker decomposition and CP decomposition differ in their approximation quality, compression ratio, and computational cost for image tensors?
+            \item \textbf{Norm dependence.}
+                How does the choice of reconstruction norm ($\|\cdot\|_F^2$, $\|\cdot\|_1$, Huber loss) affect the recovered factor matrices and the visual quality of the reconstructed image, particularly under structured noise?
+            \item \textbf{Optimization behavior.}
+                How do Alternating Least Squares (ALS) / Higher-Order Orthogonal Iteration (HOOI) compare with gradient-based methods (Adam, L-BFGS) in terms of convergence speed, stability, and sensitivity to initialization?
+            \item \textbf{Rank--quality tradeoff.}
+                Can the theoretical error bound derived from the multilinear singular value spectrum predict the empirically observed reconstruction error as a function of Tucker rank?
+        \end{enumerate}
+
+    \subsection*{Contributions}
+        The contributions of this work are as follows.
+
+        \begin{itemize}
+            \item We implement Tucker decomposition from scratch (HOSVD initialization and HOOI refinement) and verify correctness against TensorLy \cite{kossaifi2019tensorly}.
+            \item We derive and implement an Iteratively Reweighted Least Squares (IRLS) algorithm for $\ell_1$-Tucker and compare it with the Frobenius baseline and Huber-loss gradient descent on noisy image tensors.
+            \item We conduct controlled numerical experiments on rank truncation, norm sensitivity, convergence, and initialization, connecting each empirical result to its theoretical prediction.
+            \item We demonstrate a lightweight image compression pipeline that reports PSNR and compression ratio as functions of Tucker rank, providing an interpretable application of the mathematical framework.
+        \end{itemize}
+
+    \subsection*{Paper Organization}
+        The remainder of this report is organized as follows. Section~\ref{sec:background} establishes the mathematical background, including tensor notation, Tucker and CP decomposition, and the norms used throughout. Section~\ref{sec:optimization} derives the optimization algorithms: ALS/HOOI for the Frobenius objective and IRLS plus gradient-based methods for robust objectives. Section~\ref{sec:norms} analyzes the statistical and geometric implications of each norm choice. Section~\ref{sec:experiments} presents numerical experiments that validate the theoretical predictions. Section~\ref{sec:demo} applies the framework to image compression. Section~\ref{sec:discussion} interprets the results and discusses limitations, and Section~\ref{sec:conclusion} concludes.\\
+
+% % ============================================================
+% %  sections/chapter_01_ko.tex
+% %  1장: 서론
+% % ============================================================
+
+% \section{서론}
+% \label{sec:introduction}
+
+% 디지털 이미지는 일반적으로 $H \times W \times C$ 형태의 3차원 배열로
+% 저장되고 처리된다. 여기서 $H$와 $W$는 공간 차원, $C$는 색상 채널 수를 나타낸다.
+% 행렬 기반 압축 방법인 절단 특이값 분해(Truncated SVD)는 이미 잘 정립된
+% 기법이지만, 채널 축을 평탄화(flatten)하거나 각 채널을 독립적으로 처리해야 하므로
+% 지각적으로 중요한 구조를 담고 있는 채널 간 상관관계를 버리게 된다.
+
+% 텐서 분해 방법은 이러한 다중 방향(multi-way) 구조를 자연스럽게 보존한다.
+% 텐서 $\tensor{X} \in \mathbb{R}^{I_1 \times I_2 \times \cdots \times I_N}$은
+% 행렬을 $N$개의 모드(mode)로 일반화한 것이며,
+% \emph{저랭크 텐서 근사(low-rank tensor approximation)}는
+% 다음과 같은 간결한 표현 $\hat{\tensor{X}}$를 구하는 문제이다:
+% \begin{equation}
+%   \hat{\tensor{X}}
+%   \;=\; \arg\min_{\hat{\tensor{X}} \in \mathcal{M}_r}
+%         \mathcal{L}\!\left(\tensor{X},\, \hat{\tensor{X}}\right),
+%   \label{eq:general_problem}
+% \end{equation}
+% 여기서 $\mathcal{M}_r$은 적절한 저랭크 다양체(low-rank manifold)이고
+% $\mathcal{L}$은 재구성 손실 함수이다.
+
+% $\mathcal{L}$의 선택은 결과에 중대한 영향을 미친다.
+% 프로베니우스 제곱 노름 $\|\cdot\|_F^2$은 해석적으로 다루기 쉬운
+% 부분 문제를 생성하며 표준 기준선으로 널리 쓰인다.
+% 그러나 이상치(outlier)와 중꼬리(heavy-tailed) 잡음에 민감하다는 단점이 있다.
+% 반면 $\ell_1$ 노름과 Huber 손실은 강인성(robustness)을 제공하지만
+% 알고리즘적 복잡성이 증가하므로, 이에 대한 비교 연구가 필요하다.
+
+% % ------------------------------------------------------------
+% \subsection*{연구 질문}
+% % ------------------------------------------------------------
+
+% 본 프로젝트는 다음 네 가지 질문을 탐구한다.
+
+% \begin{enumerate}
+%   \item \textbf{분해 구조.}
+%         Tucker 분해와 CP 분해는 이미지 텐서에 대해
+%         근사 품질, 압축률, 계산 비용 면에서 어떻게 다른가?
+
+%   \item \textbf{노름 의존성.}
+%         재구성 노름($\|\cdot\|_F^2$, $\|\cdot\|_1$, Huber 손실)의 선택이
+%         복원된 인수 행렬과 이미지의 시각적 품질에, 특히 구조적 잡음 하에서,
+%         어떤 영향을 미치는가?
+
+%   \item \textbf{최적화 거동.}
+%         교대 최소제곱법(ALS)/고차 직교 반복(HOOI)과
+%         경사 기반 방법(Adam, L-BFGS)은 수렴 속도, 안정성,
+%         초기화 민감도 측면에서 어떻게 비교되는가?
+
+%   \item \textbf{랭크--품질 트레이드오프.}
+%         다중선형 특이값 스펙트럼으로 유도한 이론적 오차 상한이
+%         Tucker 랭크의 함수로서 실험적으로 관측된 재구성 오차를
+%         얼마나 정확하게 예측하는가?
+% \end{enumerate}
+
+% % ------------------------------------------------------------
+% \subsection*{기여}
+% % ------------------------------------------------------------
+
+% 본 보고서의 기여는 다음과 같다.
+
+% \begin{itemize}
+%   \item HOSVD 초기화와 HOOI 정제를 포함한 Tucker 분해를 처음부터 구현하고,
+%         TensorLy~\cite{kossaifi2019tensorly}와 비교하여 정확성을 검증한다.
+
+%   \item $\ell_1$-Tucker를 위한 반복 재가중 최소제곱(IRLS) 알고리즘을 유도 및
+%         구현하고, 잡음이 포함된 이미지 텐서에서 프로베니우스 기준선 및
+%         Huber 손실 경사 하강법과 비교한다.
+
+%   \item 랭크 절단, 노름 민감도, 수렴, 초기화에 관한 통제된 수치 실험을 수행하고,
+%         각 실험 결과를 해당 이론적 예측과 연결한다.
+
+%   \item Tucker 랭크의 함수로서 PSNR과 압축률을 보고하는 경량 이미지 압축
+%         파이프라인을 시연하여 수학적 프레임워크의 해석 가능한 응용을 제시한다.
+% \end{itemize}
+
+% % ------------------------------------------------------------
+% \subsection*{보고서 구성}
+% % ------------------------------------------------------------
+
+% 이후 장의 구성은 다음과 같다.
+% \ref{sec:background}장에서는 텐서 표기법, Tucker 및 CP 분해,
+% 그리고 본 연구에서 사용되는 노름을 포함한 수학적 배경을 정립한다.
+% \ref{sec:optimization}장에서는 최적화 알고리즘을 유도한다:
+% 프로베니우스 목적 함수를 위한 ALS/HOOI와
+% 강인 목적 함수를 위한 IRLS 및 경사 기반 방법을 다룬다.
+% \ref{sec:norms}장에서는 각 노름 선택의 통계적·기하학적 함의를 분석한다.
+% \ref{sec:experiments}장에서는 이론적 예측을 검증하는 수치 실험을 제시하고,
+% \ref{sec:demo}장에서는 이미지 압축에 프레임워크를 적용한다.
+% \ref{sec:discussion}장에서는 결과를 해석하고 한계를 논의하며,
+% \ref{sec:conclusion}장에서 결론을 맺는다.

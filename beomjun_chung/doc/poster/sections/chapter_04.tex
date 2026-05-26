@@ -1,0 +1,454 @@
+% ============================================================
+%  sections/chapter_04.tex
+%  Section 4: Norm Analysis
+% ============================================================
+
+\section{Norm Analysis}
+\label{sec:norms}
+The choice of reconstruction loss $\mathcal{L}$ is not merely a
+computational convenience: it encodes an explicit assumption about the
+noise distribution and determines which errors the approximation
+prioritises minimising.
+This section analyses the three losses introduced in
+Section~\ref{subsec:losses} from statistical, geometric, and numerical
+perspectives, and derives the implications for Tucker reconstruction
+under each norm.
+
+% ------------------------------------------------------------
+\subsection{Frobenius Norm: Statistical and Geometric Properties}
+\label{subsec:frob_analysis}
+% ------------------------------------------------------------
+
+\paragraph{Maximum likelihood interpretation.}
+Suppose the observed tensor is
+$\tensor{X} = \hat{\tensor{X}} + \tensor{E}$,
+where $e_{i_1\cdots i_N} \overset{\text{i.i.d.}}{\sim} \mathcal{N}(0, \sigma^2)$.
+The log-likelihood is
+\begin{equation}
+  \log p(\tensor{X} \mid \hat{\tensor{X}})
+  \;=\; -\frac{1}{2\sigma^2} \frobn{\tensor{X} - \hat{\tensor{X}}}^2
+        + \text{const},
+  \label{eq:gauss_ll}
+\end{equation}
+so the maximum likelihood estimator of $\hat{\tensor{X}}$ coincides
+exactly with the Frobenius minimiser.
+Under this noise model, HOOI is optimal.
+
+\paragraph{Unitary invariance and the ALS simplification.}
+Unitary invariance~\eqref{eq:unitary_inv} implies that when the factor
+matrices are orthonormal, the objective decomposes as
+\begin{equation}
+  \frobn{\tensor{X} - \hat{\tensor{X}}}^2
+  \;=\; \frobn{\tensor{X}}^2 - \frobn{\tensor{G}}^2,
+  \label{eq:frob_decomp}
+\end{equation}
+so \emph{minimising the reconstruction error is equivalent to maximising
+the energy captured by the core tensor}.
+This is the variational characterisation exploited by HOSVD and HOOI.
+
+\paragraph{Sensitivity to outliers.}
+The squared loss assigns weight proportional to $|r|$ to each residual
+$r = x - \hat{x}$, meaning that a single large outlier can dominate the
+objective and distort all factor matrices.
+Formally, the \emph{influence function} of the Frobenius estimator is
+unbounded~\cite{hampel1986robust}:
+\begin{equation}
+  \mathrm{IF}(r;\, \mathcal{L}_F) \;=\; r,
+  \label{eq:if_frob}
+\end{equation}
+confirming zero robustness to gross errors.
+
+% ------------------------------------------------------------
+\subsection{\texorpdfstring{$\ell_1$}{L1} Norm: Robustness and
+            Non-Smoothness}
+\label{subsec:l1_analysis}
+% ------------------------------------------------------------
+
+\paragraph{Maximum likelihood interpretation.}
+If $e_{i_1\cdots i_N} \overset{\text{i.i.d.}}{\sim}
+\mathrm{Laplace}(0, b)$, the log-likelihood is
+\begin{equation}
+  \log p(\tensor{X} \mid \hat{\tensor{X}})
+  \;=\; -\frac{1}{b}\onenorm{\tensor{X} - \hat{\tensor{X}}}
+        + \text{const},
+  \label{eq:laplace_ll}
+\end{equation}
+making the $\ell_1$ minimiser the maximum likelihood estimator under
+Laplace noise.
+The heavier tails of the Laplace distribution relative to the Gaussian
+reflect the outlier tolerance built into $\mathcal{L}_1$.
+
+\paragraph{Breakdown point.}
+The \emph{breakdown point} $\varepsilon^*$ of an estimator is the fraction
+of arbitrarily corrupted observations it can tolerate before becoming
+arbitrarily biased.
+The Frobenius estimator has $\varepsilon^* = 0$ (a single outlier suffices
+to push the estimate arbitrarily far), whereas the $\ell_1$ estimator
+achieves $\varepsilon^* = 0.5$ for location problems~\cite{maronna2019robust}.
+In the Tucker setting, this translates to robustness against sparse
+corruption of up to half the tensor entries.
+
+\paragraph{Subdifferential and optimality condition.}
+Because $\mathcal{L}_1$ is non-smooth, classical gradient conditions do
+not apply.
+The subdifferential of $|r|$ at $r$ is
+\begin{equation}
+  \partial|r|
+  \;=\; \begin{cases}
+          \{\sign(r)\} & r \neq 0, \\
+          [-1,\, 1]    & r = 0,
+        \end{cases}
+  \label{eq:subgrad_l1}
+\end{equation}
+and the optimality condition for~\eqref{eq:general_opt} with
+$\mathcal{L} = \mathcal{L}_1$ requires that zero lie in the
+subdifferential of the objective with respect to each factor.
+This is the condition that IRLS (Section~\ref{subsec:irls}) seeks to
+satisfy at convergence.
+
+\paragraph{Influence function.}
+The influence function of the $\ell_1$ estimator is bounded:
+\begin{equation}
+  \mathrm{IF}(r;\, \mathcal{L}_1) \;=\; \sign(r),
+  \label{eq:if_l1}
+\end{equation}
+confirming that a single outlier cannot push the estimate beyond a finite
+neighbourhood of the truth.
+
+% ------------------------------------------------------------
+\subsection{Huber Loss: Smooth Interpolation}
+\label{subsec:huber_analysis}
+% ------------------------------------------------------------
+
+\paragraph{Definition and properties.}
+The Huber loss $\rho_\delta$~\eqref{eq:huber} satisfies:
+\begin{itemize}
+  \item $\rho_\delta \in C^1(\R)$: continuously differentiable everywhere,
+        enabling gradient descent without subgradient complications.
+  \item $\rho_\delta(r) = \tfrac{1}{2}r^2$ for $|r| \leq \delta$:
+        quadratic near zero, consistent with Gaussian small errors.
+  \item $\rho_\delta(r) \sim \delta|r|$ for $|r| \gg \delta$:
+        linear in the tails, inheriting the robustness of $\ell_1$.
+  \item $\rho_\delta \to \tfrac{1}{2}|\cdot|^2$ as $\delta \to \infty$
+        and $\rho_\delta \to \delta|\cdot|$ as $\delta \to 0$:
+        Huber interpolates between pure Frobenius and pure $\ell_1$.
+\end{itemize}
+
+\paragraph{Influence function.}
+\begin{equation}
+  \mathrm{IF}(r;\, \mathcal{L}_H)
+  \;=\; \psi_\delta(r)
+  \;=\; \begin{cases}
+          r                    & |r| \leq \delta, \\
+          \delta\,\sign(r) & |r| > \delta,
+        \end{cases}
+  \label{eq:if_huber}
+\end{equation}
+which is bounded (unlike Frobenius) yet smooth (unlike $\ell_1$).
+
+\paragraph{Threshold selection.}
+The parameter $\delta$ controls the boundary between the quadratic and
+linear regimes.
+A data-adaptive choice is
+\begin{equation}
+  \delta^*
+  \;=\; c \cdot \widehat{\mathrm{MAD}}(\tensor{R}),
+  \qquad
+  \widehat{\mathrm{MAD}} = \mathrm{median}\!\left(|r_{i_1\cdots i_N}|
+  \right),
+  \label{eq:delta_mad}
+\end{equation}
+where $c \approx 1.345$ is the standard efficiency constant for
+Gaussian noise~\cite{huber1964robust}.
+In practice we use $\delta = 0.1 \cdot \max|\tensor{R}_0|$
+(Section~\ref{subsec:gradient}) as a scale-adaptive initialisation.
+
+% ------------------------------------------------------------
+\subsection{Geometric Interpretation}
+\label{subsec:norm_geometry}
+% ------------------------------------------------------------
+
+Each norm induces a different geometry on the residual space
+$\R^{I_1 \times \cdots \times I_N}$.
+
+\begin{itemize}
+  \item \textbf{Frobenius ($\ell_2$)}: unit ball is a hypersphere.
+        The projection onto the low-rank manifold $\mathcal{M}_r$ is
+        the Euclidean nearest point, computed exactly by HOSVD/HOOI.
+
+  \item \textbf{$\ell_1$}: unit ball is a cross-polytope.
+        The solution places large residuals at the vertices of the
+        polytope, concentrating error on a small number of entries
+        (sparse residual structure).
+
+  \item \textbf{Huber}: unit ball interpolates between the two.
+        The transition radius $\delta$ determines how quickly the ball
+        transitions from a hypersphere centre to a polytope surface.
+\end{itemize}
+
+\noindent
+This geometric picture predicts a key experimental observation: under
+sparse corruption, $\mathcal{L}_1$-Tucker concentrates its residual
+on the corrupted entries, leaving the clean entries nearly exactly
+reconstructed, whereas $\mathcal{L}_F$-Tucker spreads the residual
+evenly across all entries.
+Section~\ref{sec:experiments} verifies this prediction via error maps.
+
+% ------------------------------------------------------------
+\subsection{Norm Comparison Under Structured Noise}
+\label{subsec:norm_comparison}
+% ------------------------------------------------------------
+
+Let the observed tensor be
+$\tensor{X} = \tensor{X}^* + \tensor{S} + \tensor{G}$,
+where $\tensor{X}^*$ is the clean low-rank signal,
+$\tensor{S}$ is a sparse corruption tensor with
+$\|\tensor{S}\|_0 = s$ nonzeros,
+and $\tensor{G}$ is dense Gaussian noise with variance $\sigma^2$.
+
+Table~\ref{tab:norm_noise} summarises the expected behaviour of each
+estimator under this model.
+
+\begin{table}[h]
+  \centering
+  \caption{Expected reconstruction behaviour under structured noise.}
+  \label{tab:norm_noise}
+  \begin{tabular}{lccc}
+    \toprule
+    & \multicolumn{3}{c}{Noise type} \\
+    \cmidrule(lr){2-4}
+    Loss & Dense Gaussian & Sparse outliers & Both \\
+    \midrule
+    $\mathcal{L}_F$ & Optimal (MLE) & Poor & Poor \\
+    $\mathcal{L}_1$ & Suboptimal    & Robust ($\varepsilon^*{=}0.5$) & Moderate \\
+    $\mathcal{L}_H$ & Near-optimal  & Robust ($\delta$-dependent) & Good \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\noindent
+The key prediction is that the relative advantage of
+$\mathcal{L}_1$ and $\mathcal{L}_H$ over $\mathcal{L}_F$ should grow
+monotonically with the fraction of corrupted entries $s / \prod_n I_n$.
+This is tested directly in the noise robustness experiment
+(Section~\ref{subsec:exp_noise}).
+
+% % ============================================================
+% %  sections/chapter_04_ko.tex
+% %  4장: 노름 분석
+% % ============================================================
+
+% \section{노름 분석}
+% \label{sec:norms}
+
+% 재구성 손실 $\mathcal{L}$의 선택은 단순한 계산상의 편의가 아니라,
+% 잡음 분포에 대한 명시적 가정을 담고 있으며
+% 근사가 어떤 오차를 우선적으로 최소화할지를 결정한다.
+% 본 장에서는 \ref{subsec:losses}절에서 소개한 세 가지 손실 함수를
+% 통계적·기하학적·수치적 관점에서 분석하고,
+% 각 노름 하에서 Tucker 재구성에 미치는 영향을 유도한다.
+
+% % ------------------------------------------------------------
+% \subsection{프로베니우스 노름: 통계적·기하학적 특성}
+% \label{subsec:frob_analysis}
+% % ------------------------------------------------------------
+
+% \paragraph{최대 우도 해석.}
+% 관측 텐서가
+% $\tensor{X} = \hat{\tensor{X}} + \tensor{E}$이고
+% $e_{i_1\cdots i_N} \overset{\text{i.i.d.}}{\sim} \mathcal{N}(0, \sigma^2)$라
+% 가정하면, 로그 우도는
+% \begin{equation}
+%   \log p(\tensor{X} \mid \hat{\tensor{X}})
+%   \;=\; -\frac{1}{2\sigma^2} \frobn{\tensor{X} - \hat{\tensor{X}}}^2
+%         + \text{상수}
+%   \label{eq:gauss_ll}
+% \end{equation}
+% 이므로, $\hat{\tensor{X}}$의 최대 우도 추정량은 프로베니우스 최소화와
+% 정확히 일치한다.
+% 이 잡음 모델 하에서 HOOI는 최적이다.
+
+% \paragraph{유니터리 불변성과 ALS 단순화.}
+% 유니터리 불변성~\eqref{eq:unitary_inv}에 의해
+% 인수 행렬이 정규직교일 때 목적 함수는 다음과 같이 분해된다:
+% \begin{equation}
+%   \frobn{\tensor{X} - \hat{\tensor{X}}}^2
+%   \;=\; \frobn{\tensor{X}}^2 - \frobn{\tensor{G}}^2.
+%   \label{eq:frob_decomp}
+% \end{equation}
+% 즉, \emph{재구성 오차를 최소화하는 것은 코어 텐서가 포착하는
+% 에너지를 최대화하는 것과 동치}이다.
+% 이것이 HOSVD와 HOOI가 활용하는 변분적 특성화이다.
+
+% \paragraph{이상치 민감도.}
+% 제곱 손실은 각 잔차 $r = x - \hat{x}$에 $|r|$에 비례하는 가중치를
+% 부여하므로, 단 하나의 큰 이상치가 목적 함수를 지배하여
+% 모든 인수 행렬을 왜곡할 수 있다.
+% 형식적으로, 프로베니우스 추정량의 \emph{영향 함수(influence function)}는
+% 비유계(unbounded)이다~\cite{hampel1986robust}:
+% \begin{equation}
+%   \mathrm{IF}(r;\, \mathcal{L}_F) \;=\; r.
+%   \label{eq:if_frob}
+% \end{equation}
+% 이는 총오차(gross error)에 대한 강인성이 전혀 없음을 확인시켜 준다.
+
+% % ------------------------------------------------------------
+% \subsection{\texorpdfstring{$\ell_1$}{L1} 노름: 강인성과 비매끄러움}
+% \label{subsec:l1_analysis}
+% % ------------------------------------------------------------
+
+% \paragraph{최대 우도 해석.}
+% $e_{i_1\cdots i_N} \overset{\text{i.i.d.}}{\sim} \mathrm{Laplace}(0, b)$이면
+% 로그 우도는
+% \begin{equation}
+%   \log p(\tensor{X} \mid \hat{\tensor{X}})
+%   \;=\; -\frac{1}{b}\onenorm{\tensor{X} - \hat{\tensor{X}}}
+%         + \text{상수}
+%   \label{eq:laplace_ll}
+% \end{equation}
+% 이므로, $\ell_1$ 최소화는 라플라스 잡음 하의 최대 우도 추정과 동치이다.
+% 라플라스 분포의 가우시안 대비 두꺼운 꼬리(heavy tail)는
+% $\mathcal{L}_1$에 내재된 이상치 허용 능력을 반영한다.
+
+% \paragraph{분해점 (Breakdown point).}
+% 추정량의 \emph{분해점} $\varepsilon^*$은 추정값이 임의로 편향되기 전까지
+% 허용할 수 있는 임의 손상 관측값의 비율이다.
+% 프로베니우스 추정량은 $\varepsilon^* = 0$ (단 하나의 이상치로
+% 추정값이 무한히 멀어질 수 있음)인 반면,
+% $\ell_1$ 추정량은 위치 문제에서 $\varepsilon^* = 0.5$를
+% 달성한다~\cite{maronna2019robust}.
+% Tucker 설정에서 이는 텐서 원소의 최대 절반까지의 희소 손상에 대한
+% 강인성으로 해석된다.
+
+% \paragraph{부분미분과 최적성 조건.}
+% $\mathcal{L}_1$은 비매끄러우므로 고전적 경사 조건이 적용되지 않는다.
+% $|r|$의 $r$에서의 부분미분(subdifferential)은
+% \begin{equation}
+%   \partial|r|
+%   \;=\; \begin{cases}
+%           \{\sign(r)\} & r \neq 0, \\
+%           [-1,\, 1]    & r = 0
+%         \end{cases}
+%   \label{eq:subgrad_l1}
+% \end{equation}
+% 이며, $\mathcal{L} = \mathcal{L}_1$인~\eqref{eq:general_opt}의 최적성 조건은
+% 각 인수에 대한 목적 함수의 부분미분에 0이 포함되어야 함을 요구한다.
+% 이 조건이 수렴 시 IRLS (\ref{subsec:irls}절)가 만족하고자 하는 조건이다.
+
+% \paragraph{영향 함수.}
+% $\ell_1$ 추정량의 영향 함수는 유계(bounded)이다:
+% \begin{equation}
+%   \mathrm{IF}(r;\, \mathcal{L}_1) \;=\; \sign(r).
+%   \label{eq:if_l1}
+% \end{equation}
+% 이는 단일 이상치가 추정값을 진실의 유한 이웃 밖으로 밀어낼 수 없음을 확인한다.
+
+% % ------------------------------------------------------------
+% \subsection{Huber 손실: 매끄러운 보간}
+% \label{subsec:huber_analysis}
+% % ------------------------------------------------------------
+
+% \paragraph{정의와 성질.}
+% Huber 손실 $\rho_\delta$~\eqref{eq:huber}는 다음 성질을 만족한다:
+% \begin{itemize}
+%   \item $\rho_\delta \in C^1(\R)$: 모든 점에서 연속 미분 가능하므로
+%         부분기울기 없이 경사 하강법을 적용할 수 있다.
+%   \item $\rho_\delta(r) = \tfrac{1}{2}r^2$ ($|r| \leq \delta$):
+%         원점 근방에서 이차 함수로 가우시안 소잡음과 일치한다.
+%   \item $\rho_\delta(r) \sim \delta|r|$ ($|r| \gg \delta$):
+%         꼬리에서 선형으로 $\ell_1$의 강인성을 계승한다.
+%   \item $\delta \to \infty$이면 $\rho_\delta \to \tfrac{1}{2}|\cdot|^2$,
+%         $\delta \to 0$이면 $\rho_\delta \to \delta|\cdot|$:
+%         Huber는 순수 프로베니우스와 순수 $\ell_1$ 사이를 보간한다.
+% \end{itemize}
+
+% \paragraph{영향 함수.}
+% \begin{equation}
+%   \mathrm{IF}(r;\, \mathcal{L}_H)
+%   \;=\; \psi_\delta(r)
+%   \;=\; \begin{cases}
+%           r                    & |r| \leq \delta\text{인 경우,} \\
+%           \delta\,\sign(r) & |r| > \delta\text{인 경우}
+%         \end{cases}
+%   \label{eq:if_huber}
+% \end{equation}
+% 로 유계(프로베니우스와 달리)이면서 매끄럽다($\ell_1$과 달리).
+
+% \paragraph{임계값 선택.}
+% $\delta$는 이차 구간과 선형 구간의 경계를 제어한다.
+% 데이터 적응적 선택은
+% \begin{equation}
+%   \delta^*
+%   \;=\; c \cdot \widehat{\mathrm{MAD}}(\tensor{R}),
+%   \qquad
+%   \widehat{\mathrm{MAD}} = \mathrm{median}\!\left(|r_{i_1\cdots i_N}|
+%   \right)
+%   \label{eq:delta_mad}
+% \end{equation}
+% 이며, 가우시안 잡음에서 $c \approx 1.345$가 표준 효율 상수이다~\cite{huber1964robust}.
+% 본 실험에서는 스케일 적응적 초기화로
+% $\delta = 0.1 \cdot \max|\tensor{R}_0|$를 사용한다
+% (\ref{subsec:gradient}절).
+
+% % ------------------------------------------------------------
+% \subsection{기하학적 해석}
+% \label{subsec:norm_geometry}
+% % ------------------------------------------------------------
+
+% 각 노름은 잔차 공간
+% $\R^{I_1 \times \cdots \times I_N}$에 서로 다른 기하 구조를 부여한다.
+
+% \begin{itemize}
+%   \item \textbf{프로베니우스 ($\ell_2$)}: 단위 볼이 초구(hypersphere)이다.
+%         저랭크 다양체 $\mathcal{M}_r$로의 투영이 유클리드 최근접점이 되어
+%         HOSVD/HOOI로 정확하게 계산된다.
+
+%   \item \textbf{$\ell_1$}: 단위 볼이 교차 다면체(cross-polytope)이다.
+%         해는 큰 잔차를 다면체의 꼭짓점에 배치하여
+%         소수의 원소에 오차를 집중시킨다 (희소 잔차 구조).
+
+%   \item \textbf{Huber}: 단위 볼이 두 형태의 중간을 보간한다.
+%         전환 반경 $\delta$가 볼의 중심부 초구에서 표면 다면체로의
+%         전환 속도를 결정한다.
+% \end{itemize}
+
+% 이 기하학적 관점은 핵심 실험 관찰을 예측한다:
+% 희소 손상 하에서 $\mathcal{L}_1$-Tucker는 잔차를 손상된 원소에
+% 집중시켜 깨끗한 원소를 거의 정확하게 재구성하는 반면,
+% $\mathcal{L}_F$-Tucker는 잔차를 모든 원소에 균등하게 분산시킨다.
+% \ref{sec:experiments}장에서 오차 지도(error map)를 통해 이 예측을 검증한다.
+
+% % ------------------------------------------------------------
+% \subsection{구조적 잡음 하에서의 노름 비교}
+% \label{subsec:norm_comparison}
+% % ------------------------------------------------------------
+
+% 관측 텐서를
+% $\tensor{X} = \tensor{X}^* + \tensor{S} + \tensor{G}$로 모델링한다.
+% 여기서 $\tensor{X}^*$는 깨끗한 저랭크 신호,
+% $\tensor{S}$는 비영 원소가 $\|\tensor{S}\|_0 = s$개인 희소 손상 텐서,
+% $\tensor{G}$는 분산 $\sigma^2$의 밀집 가우시안 잡음이다.
+
+% 표~\ref{tab:norm_noise}는 이 모델 하에서 각 추정량의 예상 거동을 요약한다.
+
+% \begin{table}[h]
+%   \centering
+%   \caption{구조적 잡음 하에서의 예상 재구성 거동.}
+%   \label{tab:norm_noise}
+%   \begin{tabular}{lccc}
+%     \toprule
+%     & \multicolumn{3}{c}{잡음 유형} \\
+%     \cmidrule(lr){2-4}
+%     손실 함수 & 밀집 가우시안 & 희소 이상치 & 혼합 \\
+%     \midrule
+%     $\mathcal{L}_F$ & 최적 (MLE) & 불량 & 불량 \\
+%     $\mathcal{L}_1$ & 준최적      & 강인 ($\varepsilon^*{=}0.5$) & 보통 \\
+%     $\mathcal{L}_H$ & 준최적      & 강인 ($\delta$ 의존) & 양호 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+% 핵심 예측은 $\mathcal{L}_1$과 $\mathcal{L}_H$의 $\mathcal{L}_F$ 대비
+% 상대적 이점이 손상 원소 비율 $s / \prod_n I_n$에 따라
+% 단조 증가해야 한다는 것이다.
+% 이는 \ref{subsec:exp_noise}절의 잡음 강인성 실험에서 직접 검증한다.
