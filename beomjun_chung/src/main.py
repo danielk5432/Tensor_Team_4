@@ -14,7 +14,6 @@ import tensorly as tl
 
 tl.set_backend("numpy")
 
-# ───────────────────────── GT validation ──────────────────────────
 def validate_tucker(test_shape=(20, 20, 3), rank=(5, 5, 2), seed=0):
     from src.decomposition import hosvd, hooi
 
@@ -38,9 +37,7 @@ def validate_tucker(test_shape=(20, 20, 3), rank=(5, 5, 2), seed=0):
     err_ho = np.linalg.norm(X - X_ho) / np.linalg.norm(X)
 
     # HOSVD should match tensorly's HOSVD init (not HOOI) — use n_iter_max=0
-    core_hs_gt, factors_hs_gt = tl.decomposition.tucker(
-        X, rank=list(rank), init="svd", n_iter_max=0
-    )
+    core_hs_gt, factors_hs_gt = tl.decomposition.tucker(X, rank=list(rank), init="svd", n_iter_max=0)
     err_gt_hosvd = np.linalg.norm(X - tl.tucker_to_tensor((core_hs_gt, factors_hs_gt))) / np.linalg.norm(X)
 
     print(f"\n[validate_tucker] shape={test_shape} rank={rank}")
@@ -52,7 +49,6 @@ def validate_tucker(test_shape=(20, 20, 3), rank=(5, 5, 2), seed=0):
     assert abs(err_hs - err_gt_hosvd) < 0.05, "HOSVD GT diff > 5%"
     assert abs(err_ho - err_gt) < 0.05, "HOOI GT diff > 5%"
     print("  [OK] Both within 5% of tensorly GT")
-
 
 def validate_cp(test_shape=(20, 20, 3), rank=5, seed=0):
     from src.decomposition import cp_als
@@ -78,8 +74,6 @@ def validate_cp(test_shape=(20, 20, 3), rank=5, seed=0):
     print(f"  CP-ALS absolute error: {err_cp:.6f}")
     print("  [OK] CP-ALS ran successfully")
 
-
-# ────────────────────────── experiments ───────────────────────────
 def run_experiments(which: list) -> None:
     if "convergence" in which:
         print("\n" + "=" * 60)
@@ -111,7 +105,6 @@ def run_experiments(which: list) -> None:
         from src.experiments.math_validation import run
         run()
 
-
 def main():
     parser = argparse.ArgumentParser(description="Tensor Decomposition Experiments")
     parser.add_argument("--validate-only", action="store_true")
@@ -131,7 +124,6 @@ def main():
 
     if not args.validate_only:
         run_experiments(args.exp)
-
 
 if __name__ == "__main__":
     main()
