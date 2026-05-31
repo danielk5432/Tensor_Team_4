@@ -1,0 +1,387 @@
+% ============================================================
+%  A0 Portrait Poster — 1 page, 2 columns
+%  Overleaf figures/ folder: 8 images (see list at bottom)
+% ============================================================
+\documentclass[final]{beamer}
+
+\usepackage[size=a0,orientation=portrait,scale=1.3]{beamerposter}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{lmodern}
+\usepackage{ragged2e}
+
+\definecolor{NavyBlue}{RGB}{10, 55, 130}
+\definecolor{LightBlue}{RGB}{218, 232, 255}
+\definecolor{Accent}{RGB}{205, 65, 0}
+\definecolor{TitleBar}{RGB}{8, 42, 100}
+\definecolor{GreenOK}{RGB}{0, 110, 50}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{footline}{}
+\setbeamercolor{background canvas}{bg=white}
+\setbeamersize{text margin left=48pt, text margin right=48pt}
+
+\tcbset{
+  sbox/.style={
+    enhanced,
+    colback=LightBlue, colframe=NavyBlue,
+    coltitle=white, colbacktitle=NavyBlue,
+    fonttitle=\fontsize{36}{44}\selectfont\bfseries,
+    arc=8pt, boxrule=2.5pt,
+    top=12pt, bottom=10pt, left=14pt, right=14pt,
+    toptitle=12pt, bottomtitle=12pt,
+  },
+  eqbox/.style={
+    enhanced, colback=white, colframe=Accent,
+    boxrule=2pt, arc=6pt,
+    top=8pt, bottom=8pt, left=10pt, right=10pt,
+  },
+  greenbox/.style={
+    enhanced, colback=white, colframe=GreenOK,
+    boxrule=2pt, arc=6pt,
+    top=6pt, bottom=6pt, left=10pt, right=10pt,
+  }
+}
+
+\newcommand{\vsep}{\vspace{8pt}}
+
+\begin{document}
+
+\begin{frame}[t]
+
+% ── Title Banner ─────────────────────────────────────────────
+\begin{tcolorbox}[
+  enhanced, colback=TitleBar, colframe=TitleBar,
+  arc=0pt, boxrule=0pt,
+  top=90pt, bottom=56pt, left=28pt, right=28pt
+]
+  {\color{white}\fontsize{90}{114}\selectfont\bfseries
+    Low-Rank Tensor Approximation \& Image Inpainting}\\[20pt]
+  {\color{white!70!TitleBar}\fontsize{48}{58}\selectfont
+    Team 4 \quad TP406 \quad 2026}
+\end{tcolorbox}
+
+\vspace{-30pt}
+
+\begin{columns}[t,onlytextwidth]
+
+% =====================================================================
+% LEFT COLUMN
+% =====================================================================
+\begin{column}{0.49\textwidth}
+
+% ── Sec 1: Introduction ──────────────────────────────────────────────
+% Layout: bullets (left) | TikZ + equation below (right)
+\begin{tcolorbox}[sbox, title={1.\;\; Introduction \& Motivation}]
+  \begin{minipage}[t]{0.50\linewidth}
+    \fontsize{28}{36}\selectfont\RaggedRight
+    \begin{itemize}\setlength\itemsep{6pt}
+      \item Real-world data arise as \textbf{tensors}:
+            RGB images, videos, hyperspectral data
+      \item Low-rank decomposition yields \textbf{compact,
+            structured representations}
+      \item This work: CP-ALS and Tucker applied to
+            decomposition \& image inpainting
+    \end{itemize}
+    \vspace{10pt}
+    \textbf{Contributions:}
+    \begin{itemize}\setlength\itemsep{5pt}
+      \item CP-ALS decomposition from scratch
+      \item Tucker decomposition (HOSVD / HOOI)
+      \item Mathematical validation \& convergence study
+      \item Image inpainting on 6 benchmark datasets
+    \end{itemize}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[t]{0.47\linewidth}
+    \centering\vspace{45pt}   % 2pt → 40pt, 원하는 만큼 조절
+    \begin{tikzpicture}[scale=1.4]
+      \fill[blue!12] (0,0) rectangle (3.8,2.7);
+      \fill[blue!22] (0,2.7)--(0.8,3.4)--(4.6,3.4)--(3.8,2.7)--cycle;
+      \fill[blue!8]  (3.8,0)--(4.6,0.7)--(4.6,3.4)--(3.8,2.7)--cycle;
+      \draw[NavyBlue,line width=1.8pt] (0,0) rectangle (3.8,2.7);
+      \draw[NavyBlue,line width=1.8pt]
+        (0,2.7)--(0.8,3.4)--(4.6,3.4)--(4.6,0.7)--(3.8,0);
+      \draw[NavyBlue,line width=1.8pt] (3.8,2.7)--(4.6,3.4);
+      \node[font=\fontsize{44}{52}\selectfont\bfseries,text=NavyBlue]
+        at (1.9,1.35) {$\mathcal{X}$};
+      \draw[-{Stealth[scale=2.2]},line width=2.5pt,Accent]
+        (5.1,1.7)--(6.5,1.7);
+      \node[font=\fontsize{22}{26}\selectfont,above] at (5.8,1.7) {rank-$R$};
+      \foreach \i in {0,1,2}{
+        \begin{scope}[shift={(\i*0.35,\i*0.35)}]
+          \fill[green!20,opacity=0.8] (6.8,0.3) rectangle (8.5,2.8);
+          \draw[green!55!black,line width=1.2pt] (6.8,0.3) rectangle (8.5,2.8);
+        \end{scope}
+      }
+      \node[font=\fontsize{30}{36}\selectfont\bfseries] at (8.25,1.75)
+        {$\sum_r$};
+    \end{tikzpicture}\\[10pt]  
+    \vspace{28pt}                        % 20pt → 28pt
+    \fontsize{32}{32}\selectfont
+    \textbf{Goal:} Given
+    $\mathcal{T}\in\mathbb{C}^{n_1}\!\otimes\!\mathbb{C}^{n_2}\!\otimes\!\mathbb{C}^{n_3}$,
+    \vspace{8pt}                         % 4pt → 8pt
+    \begin{tcolorbox}[eqbox,
+      top=20pt, bottom=20pt             % 수식 내부 위아래 여백 확대
+    ]
+      \fontsize{36}{44}\selectfont\centering
+      $\displaystyle\min_{\hat{\mathcal{T}}\,\mathrm{low\text{-}rank}}
+        \|\mathcal{T}-\hat{\mathcal{T}}\|_F$
+    \end{tcolorbox}
+  \end{minipage}
+\end{tcolorbox}
+
+\vsep
+
+% ── Sec 2: CP Decomposition ───────────────────────────────────────────
+\begin{tcolorbox}[sbox, title={2.\;\; CP Decomposition (Canonical Polyadic)}]
+  \fontsize{28}{36}\selectfont\RaggedRight
+  Sum of $R$ rank-one tensors:
+  \vspace{4pt}
+  \begin{tcolorbox}[eqbox]
+    \fontsize{44}{54}\selectfont\centering
+    $\displaystyle\mathcal{X}\approx\sum_{r=1}^{R}
+      \mathbf{a}_r\otimes\mathbf{b}_r\otimes\mathbf{c}_r$
+  \end{tcolorbox}
+  \vspace{8pt}
+  \textbf{ALS mode-1 update:}
+  \vspace{4pt}
+  \begin{tcolorbox}[eqbox]
+    \fontsize{34}{42}\selectfont\centering
+    $A\leftarrow X_{(1)}(C\odot B)
+      (B^{\!\top}B\ast C^{\!\top}C)^{\dagger}$
+  \end{tcolorbox}
+  \vspace{8pt}
+  \begin{itemize}\setlength\itemsep{4pt}
+    \item Fix $B,C$ $\to$ update $A$; cycle all modes
+    \item Rank $R$ directly controls compression
+  \end{itemize}
+  \vspace{6pt}
+\begin{center}
+  \includegraphics[width=0.75\linewidth]{figures/fig1_rank_vs_error.png}
+\end{center}
+{\fontsize{24}{30}\selectfont\centering
+    CP-ALS matches TensorLy: relative error vs.\ rank $R$\par}
+\end{tcolorbox}
+
+\vsep
+
+% ── Sec 3: Tucker Decomposition ───────────────────────────────────────
+\begin{tcolorbox}[sbox, title={3.\;\; Tucker Decomposition (HOSVD / HOOI)}]
+  \fontsize{28}{36}\selectfont\RaggedRight
+  Core tensor $\mathcal{G}$ + factor matrices:
+  \vspace{4pt}
+  \begin{tcolorbox}[eqbox]
+    \fontsize{44}{54}\selectfont\centering
+    $\mathcal{X}\approx\mathcal{G}
+      \times_1\!A\;\times_2\!B\;\times_3\!C$
+  \end{tcolorbox}
+  \vspace{8pt}
+  \textbf{HOSVD init \& HOOI refinement:}
+  \vspace{4pt}
+  \begin{tcolorbox}[eqbox]
+    \fontsize{32}{40}\selectfont\centering
+    $A^{(n)}=\mathrm{trunc\text{-}SVD}_{r_n}(X_{(n)})$\quad
+    $\mathcal{G}=\mathcal{X}
+      \times_1\!A^{\!\top}\times_2\!B^{\!\top}\times_3\!C^{\!\top}$
+  \end{tcolorbox}
+  \vspace{8pt}
+  \begin{itemize}\setlength\itemsep{4pt}
+    \item Multi-linear rank $(r_1,r_2,r_3)$ — more flexible than CP
+    \item HOSVD: closed-form init;\; HOOI: iterative refinement
+  \end{itemize}
+  \vspace{6pt}
+  \begin{center}
+  \includegraphics[width=0.9\linewidth]{figures/tucker_rank_sweep.png}
+\end{center}
+  {\fontsize{24}{30}\selectfont\centering
+    Tucker (Lena): PSNR \& compression ratio vs.\ rank\par}
+\end{tcolorbox}
+
+\vspace*{\fill}
+
+\end{column}
+
+
+% =====================================================================
+% RIGHT COLUMN
+% =====================================================================
+\begin{column}{0.487\textwidth}
+
+% ── Sec 4: Mathematical Analysis ─────────────────────────────────────
+% Layout: [objective eq | metrics eq] / explanation / [fig | fig]
+\begin{tcolorbox}[sbox, title={4.\;\; Mathematical Analysis \& Validation}]
+
+  % Row 1 — equations side by side
+  \begin{minipage}[t]{0.48\linewidth}
+    \fontsize{26}{34}\selectfont\RaggedRight
+    \textbf{Optimization objective:}
+    \vspace{4pt}
+    \begin{tcolorbox}[eqbox]
+      \fontsize{30}{38}\selectfont\centering
+      $\displaystyle\min_{A,B,C}
+        \!\left\|\mathcal{X}-\sum_{r=1}^{R}
+          \mathbf{a}_r\!\otimes\!\mathbf{b}_r\!\otimes\!\mathbf{c}_r
+        \right\|_F^{\!2}$
+    \end{tcolorbox}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[t]{0.49\linewidth}
+    \fontsize{26}{34}\selectfont\RaggedRight
+    \textbf{Evaluation metrics:}
+    \vspace{4pt}
+    \begin{tcolorbox}[greenbox]
+      \fontsize{22}{28}\selectfont
+      \begin{align*}
+        \varepsilon_{\mathrm{rel}}
+          &=\frac{\|\mathcal{X}-\hat{\mathcal{X}}\|_F}{\|\mathcal{X}\|_F}\\[3pt]
+        \mathrm{PSNR}
+          &=10\log_{10}\!\left(\frac{\mathrm{MAX}^2}{\mathrm{MSE}}\right)\\[3pt]
+        \mathrm{SSIM}
+          &=\frac{(2\mu_x\mu_y\!+\!c_1)(2\sigma_{xy}\!+\!c_2)}
+                 {(\mu_x^2\!+\!\mu_y^2\!+\!c_1)(\sigma_x^2\!+\!\sigma_y^2\!+\!c_2)}
+      \end{align*}
+    \end{tcolorbox}
+  \end{minipage}
+
+  \vspace{10pt}
+  % Middle — explanation
+  \fontsize{26}{34}\selectfont\RaggedRight
+  ALS iteratively updates each factor matrix while fixing the others, cycling
+  until convergence. Three experiments validate correctness across real and
+  complex tensors: (i)~exact rank-2 recovery, (ii)~noisy rank-2 recovery,
+  (iii)~generic random tensor approximation.
+  All cases satisfy $\varepsilon_{\mathrm{rel}}<10^{-4}$.
+  \vspace{10pt}
+
+  % Row 2 — figures side by side
+  \begin{minipage}[t]{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figures/convergence_curves.png}\\[2pt]
+    {\fontsize{22}{28}\selectfont
+      HOOI converges faster than CP-ALS\par}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[t]{0.49\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{figures/test1_exact_rank2.png}\\[2pt]
+    {\fontsize{22}{28}\selectfont
+      Exact rank-2: all trials pass $\varepsilon<10^{-4}$\par}
+  \end{minipage}
+
+\end{tcolorbox}
+
+\vsep
+
+% ── Sec 5: Image Inpainting ───────────────────────────────────────────
+% Layout: pipeline (left) | equation + explanation + 2 images (right)
+\begin{tcolorbox}[sbox, title={5.\;\; Application: Image Inpainting}]
+  \begin{minipage}[t]{0.28\linewidth}
+    \fontsize{28}{36}\selectfont\bfseries Pipeline\\[10pt]
+    \begin{tikzpicture}[
+      box/.style={
+        rectangle, rounded corners=7pt,
+        fill=NavyBlue!12, draw=NavyBlue, line width=2pt,
+        text width=0.86\linewidth, align=center,
+        font=\fontsize{26}{32}\selectfont,
+        minimum height=1.5cm
+      },
+      arr/.style={-{Stealth[scale=2]},line width=2.5pt,NavyBlue}
+    ]
+      \node[box] (a) {Original Image};
+      \node[box,below=0.6cm of a] (b) {Apply Mask\\(missing pixels)};
+      \node[box,below=0.6cm of b] (c) {CP-ALS / Tucker\\Decomposition};
+      \node[box,below=0.6cm of c] (d) {Restored Image};
+      \draw[arr] (a)--(b);
+      \draw[arr] (b)--(c);
+      \draw[arr] (c)--(d);
+    \end{tikzpicture}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[t]{0.69\linewidth}
+    \fontsize{26}{34}\selectfont\RaggedRight
+    \textbf{RGB image as 3-D tensor:}
+    \vspace{4pt}
+    \begin{tcolorbox}[eqbox]
+      \fontsize{36}{44}\selectfont\centering
+      $I\;\in\;\mathbb{R}^{H\times W\times 3}$
+    \end{tcolorbox}
+    \vspace{8pt}
+    CP-ALS and Tucker decompositions exploit the low-rank structure of
+    RGB image tensors to reconstruct masked (missing) regions.
+    Random masks simulate corruption; performance is quantified
+    by PSNR and SSIM across six standard test images.
+    \vspace{8pt}
+    \begin{minipage}[t]{0.495\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{figures/reconstruction_panel.png}\\[2pt]
+      {\fontsize{20}{26}\selectfont
+        Lena: Orig\,/\,HOSVD\,/\,HOOI\,/\,CP\par}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}[t]{0.495\linewidth}
+      \centering
+      \includegraphics[width=\linewidth]{figures/reconstruction_baboon.png}\\[2pt]
+      {\fontsize{20}{26}\selectfont
+        Baboon: Orig\,/\,HOSVD\,/\,HOOI\,/\,CP\par}
+    \end{minipage}
+  \end{minipage}
+\end{tcolorbox}
+
+\vsep
+
+% ── Sec 6: Performance Results ────────────────────────────────────────
+% Layout: key findings bullets + 2 figures stacked vertically
+\begin{tcolorbox}[sbox, title={6.\;\; Performance Results}]
+  \fontsize{26}{34}\selectfont\RaggedRight
+  \textbf{Key findings:}
+  \begin{itemize}\setlength\itemsep{5pt}
+    \item Tucker achieves higher PSNR than CP at the same compression ratio
+    \item L1 (robust) objective significantly outperforms L2 under
+          impulsive Salt-and-Pepper noise
+    \item Rank selection is the dominant hyperparameter controlling the
+          quality--compression trade-off
+  \end{itemize}
+  \vspace{8pt}
+  \begin{center}
+  \includegraphics[width=0.9\linewidth]{figures/cp_rank_sweep.png}
+\end{center}
+  {\fontsize{22}{28}\selectfont\centering
+    CP-ALS: PSNR \& relative error vs.\ rank (Lena)\par}
+  \vspace{8pt}
+  \begin{center}
+  \includegraphics[width=0.9\linewidth]{figures/noise_comparison.png}
+\end{center}
+  {\fontsize{22}{28}\selectfont\centering
+
+    Noise robustness: L1 objective outperforms L2 under S\&P noise\par}
+\end{tcolorbox}
+
+\vspace*{\fill}
+
+\end{column}
+\end{columns}
+
+\vsep
+
+% ── Full-width Conclusion ─────────────────────────────────────────────
+\begin{tcolorbox}[sbox,
+  colback=TitleBar!10, colframe=TitleBar,
+  colbacktitle=TitleBar,
+  top=48pt, bottom=48pt,
+  title={7.\;\; Conclusion}
+]
+  \centering\fontsize{38}{48}\selectfont\bfseries\color{TitleBar}
+  Tucker decomposition provides greater reconstruction flexibility than CP,
+  and both methods effectively recover missing image pixels
+  via low-rank tensor completion.
+\end{tcolorbox}
+
+\end{frame}
+\end{document}

@@ -1,0 +1,571 @@
+% ============================================================
+%  0_formulas.tex
+%  Tensor Decomposition Formulas (LaTeX conversion)
+%  Source: "0. Notes_CP decomposition.pdf"
+%          "0. Notes_Tucker decomposition.pdf"
+%  Reference: Tensor Decompositions and Applications
+%             T. G. Kolda, B. W. Bader
+%
+%  Compile: pdflatex 0_formulas.tex
+% ============================================================
+
+\documentclass[12pt]{article}
+\usepackage{amsmath, amssymb}
+\usepackage{stmaryrd}   % \llbracket, \rrbracket
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\geometry{margin=1in}
+
+\newcommand{\T}[1]{\mathcal{#1}}   % tensor notation
+\newcommand{\rank}{\mathrm{rank}}
+
+\title{\textbf{Tensor Decomposition Formulas}\\[0.5em]
+       \large CP Decomposition \quad \& \quad Tucker Decomposition}
+\date{}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{CP Decomposition}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{Inner Product}
+% ------------------------------------------------------------
+
+The inner product of two same-sized tensors
+$\T{X}, \T{Y} \in \mathbb{R}^{I_1 \times I_2 \times \cdots \times I_N}$:
+
+\begin{equation}
+\langle \T{X},\, \T{Y} \rangle
+= \sum_{i_1=1}^{I_1} \sum_{i_2=1}^{I_2} \cdots \sum_{i_N=1}^{I_N}
+  x_{i_1 i_2 \cdots i_N}\; y_{i_1 i_2 \cdots i_N}
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{Frobenius Norm}
+% ------------------------------------------------------------
+
+The Frobenius norm of a tensor
+$\T{X} \in \mathbb{R}^{I_1 \times I_2 \times \cdots \times I_N}$:
+
+\begin{equation}
+\|\T{X}\|
+= \sqrt{\sum_{i_1=1}^{I_1} \sum_{i_2=1}^{I_2} \cdots \sum_{i_N=1}^{I_N}
+  x_{i_1 i_2 \cdots i_N}^{2}}
+= \sqrt{\langle \T{X},\, \T{X} \rangle}
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{CP Decomposition}
+% ------------------------------------------------------------
+
+Given a third-order tensor $\T{X} \in \mathbb{R}^{I \times J \times K}$:
+
+\begin{equation}
+\T{X} \approx \sum_{r=1}^{R} a_r \circ b_r \circ c_r
+\end{equation}
+
+where $R$ is a positive integer,
+$a_r \in \mathbb{R}^{I}$, $b_r \in \mathbb{R}^{J}$, $c_r \in \mathbb{R}^{K}$.
+
+\medskip
+\noindent Elementwise:
+\begin{equation}
+x_{ijk} = \sum_{r=1}^{R} a_{ir}\, b_{jr}\, c_{kr},
+\qquad
+i = 1, \ldots, I,\quad j = 1, \ldots, J,\quad k = 1, \ldots, K
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{Khatri--Rao Product}
+% ------------------------------------------------------------
+
+\begin{equation}
+A \odot B
+= \begin{bmatrix} a_1 \otimes b_1 & a_2 \otimes b_2 & \cdots & a_R \otimes b_R \end{bmatrix}
+\end{equation}
+
+where $A \in \mathbb{R}^{I \times R}$, $B \in \mathbb{R}^{J \times R}$ (matrices with $R$ columns),
+so $A \odot B \in \mathbb{R}^{(IJ) \times R}$.
+
+% ------------------------------------------------------------
+\subsection{Matricized (Unfolded) Form of CP}
+% ------------------------------------------------------------
+
+The factor matrices $A = [a_1,\, a_2,\, \ldots,\, a_R]$
+(likewise $B$ and $C$) give the mode-$n$ unfolding approximations:
+
+\begin{align}
+X_{(1)} &\approx A\,(C \odot B)^{\top} \\[4pt]
+X_{(2)} &\approx B\,(C \odot A)^{\top} \\[4pt]
+X_{(3)} &\approx C\,(B \odot A)^{\top}
+\end{align}
+
+% ------------------------------------------------------------
+\subsection{Example: $\T{X} \in \mathbb{R}^{3 \times 4 \times 2}$}
+% ------------------------------------------------------------
+
+\begin{equation}
+X_1 =
+\begin{bmatrix}
+ 1 &  4 &  7 & 10 \\
+ 2 &  5 &  8 & 11 \\
+ 3 &  6 &  9 & 12
+\end{bmatrix},
+\qquad
+X_2 =
+\begin{bmatrix}
+13 & 16 & 19 & 22 \\
+14 & 17 & 20 & 23 \\
+15 & 18 & 21 & 24
+\end{bmatrix}
+\end{equation}
+
+CP decomposition $\Rightarrow$ $\T{X}' =$ sum of 2 rank-1 tensors:
+\begin{equation}
+\T{X}' = a_1 \otimes b_1 \otimes c_1 \;+\; a_2 \otimes b_2 \otimes c_2
+\end{equation}
+
+\noindent Factor matrices:
+\begin{equation}
+A = [a_1 \;\; a_2] =
+\begin{bmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \end{bmatrix},
+\qquad
+B = [b_1 \;\; b_2] =
+\begin{bmatrix} 1 & 2 \\ 0 & 1 \\ 2 & 0 \\ 1 & 1 \end{bmatrix},
+\qquad
+C = [c_1 \;\; c_2] =
+\begin{bmatrix} 1 & 1 \\ 0 & 2 \end{bmatrix}
+\end{equation}
+
+\noindent Khatri--Rao product $C \odot B = [c_1 \otimes b_1 \;\; c_2 \otimes b_2]$:
+
+\begin{equation}
+c_1 \otimes b_1
+=
+\begin{bmatrix}1\\0\end{bmatrix}
+\otimes
+\begin{bmatrix}1\\0\\2\\1\end{bmatrix}
+=
+\begin{bmatrix}
+1 \times \begin{bmatrix}1\\0\\2\\1\end{bmatrix}\\[4pt]
+0 \times \begin{bmatrix}1\\0\\2\\1\end{bmatrix}
+\end{bmatrix}
+=
+\begin{bmatrix}1\\0\\2\\1\\0\\0\\0\\0\end{bmatrix},
+\qquad
+c_2 \otimes b_2
+=
+\begin{bmatrix}1\\2\end{bmatrix}
+\otimes
+\begin{bmatrix}2\\1\\0\\1\end{bmatrix}
+=
+\begin{bmatrix}
+1 \times \begin{bmatrix}2\\1\\0\\1\end{bmatrix}\\[4pt]
+2 \times \begin{bmatrix}2\\1\\0\\1\end{bmatrix}
+\end{bmatrix}
+=
+\begin{bmatrix}2\\1\\0\\1\\4\\2\\0\\2\end{bmatrix}
+\end{equation}
+
+\begin{equation}
+\Rightarrow \quad
+C \odot B =
+\begin{bmatrix}
+1 & 2 \\
+0 & 1 \\
+2 & 0 \\
+1 & 1 \\
+0 & 4 \\
+0 & 2 \\
+0 & 0 \\
+0 & 2
+\end{bmatrix}
+\in \mathbb{R}^{8 \times 2}
+\end{equation}
+
+\begin{equation}
+X_{(1)} = A\,(C \odot B)^{\top}
+=
+\begin{bmatrix}1&0\\0&1\\1&1\end{bmatrix}
+\begin{bmatrix}
+1&0&2&1&0&0&0&0\\
+2&1&0&1&4&2&0&2
+\end{bmatrix}
+=
+\begin{bmatrix}
+1&0&2&1&0&0&0&0\\
+2&1&0&1&4&2&0&2\\
+3&1&2&2&4&2&0&2
+\end{bmatrix}
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{Matricization (Unfolding / Flattening)}
+% ------------------------------------------------------------
+
+The \textbf{mode-$n$ matricization} of
+$\T{X} \in \mathbb{R}^{I_1 \times I_2 \times \cdots \times I_N}$,
+denoted $X_{(n)}$, arranges the mode-$n$ fibers as the columns of the resulting matrix:
+
+\begin{equation}
+\mathbb{R}^{I_1 \times I_2 \times \cdots \times I_N}
+\;\xrightarrow{\text{unfold}}\;
+\mathbb{R}^{\;I_n \;\times\; (I_1 \cdots I_{n-1} I_{n+1} \cdots I_N)}
+\end{equation}
+
+\noindent Index mapping:
+\begin{equation}
+(i_1, i_2, \ldots, i_N)
+\;\longmapsto\;
+\left(\,i_n,\;\; 1 + \sum_{\substack{k=1\\k\neq n}}^{N}(i_k-1)\,J_k\,\right),
+\qquad
+J_k = \prod_{\substack{m=1\\m\neq n}}^{k-1} I_m
+\end{equation}
+
+\noindent\textbf{Example:} $\T{X} \in \mathbb{R}^{3 \times 4 \times 2}$
+
+\begin{equation}
+X_{(1)} =
+\begin{bmatrix}
+ 1 &  4 &  7 & 10 & 13 & 16 & 19 & 22 \\
+ 2 &  5 &  8 & 11 & 14 & 17 & 20 & 23 \\
+ 3 &  6 &  9 & 12 & 15 & 18 & 21 & 24
+\end{bmatrix}
+\end{equation}
+
+Verification: $x_{2,3,2} = X_{(1),\,2,\,7}$, since
+\begin{align}
+j &= 1 + (i_2 - 1)\,J_2 + (i_3 - 1)\,J_3 \notag\\
+  &= 1 + (3-1)\times 1 + (2-1)\times 4 \notag\\
+  &= 1 + 2 + 4 = 7
+\end{align}
+
+% ------------------------------------------------------------
+\subsection{Alternating Least Squares (ALS) for CP}
+% ------------------------------------------------------------
+
+Let $\T{X} \in \mathbb{R}^{I \times J \times K}$ be a third-order tensor.
+The goal is to find:
+
+\begin{equation}
+\min_{\T{X}'}\;\|\T{X} - \T{X}'\|
+\quad\text{with}\quad
+\T{X}' = \sum_{r=1}^{R} \lambda_r\,a_r \circ b_r \circ c_r
+= \llbracket \lambda;\, A, B, C \rrbracket,
+\end{equation}
+
+where $A \in \mathbb{R}^{I \times R}$, $B \in \mathbb{R}^{J \times R}$, $C \in \mathbb{R}^{K \times R}$.
+
+\medskip
+\noindent Fixing $B$ and $C$, rewrite in matrix form:
+
+\begin{equation}
+\min_{A'}\;\left\|X_{(1)} - A'(C \odot B)^{\top}\right\|_{F},
+\qquad A' = A \cdot \mathrm{diag}(\lambda)
+\end{equation}
+
+Setting the residual to zero:
+\begin{equation}
+X_{(1)} - A'(C \odot B)^{\top} \approx 0
+\quad\Rightarrow\quad
+A' = X_{(1)}\left[(C \odot B)^{\top}\right]^{+}
+   = X_{(1)}\left[(C \odot B)^{+}\right]^{\top}
+\end{equation}
+
+Since $M^{+} = (M^{\top} M)^{+} M^{\top}$:
+\begin{equation}
+(C \odot B)^{+}
+= \left[(C \odot B)^{\top}(C \odot B)\right]^{+}(C \odot B)^{\top}
+\end{equation}
+
+Using the Hadamard-product identity
+$\left[(C \odot B)^{\top}(C \odot B)\right]^{+} = (C^{\top}C) * (B^{\top}B)$:
+
+\begin{equation}
+\boxed{
+A' = X_{(1)}\,(C \odot B)\,\bigl(C^{\top}C \ast B^{\top}B\bigr)^{+}
+}
+\end{equation}
+
+\noindent where $\ast$ denotes the Hadamard (elementwise) product,
+$(C \odot B) \in \mathbb{R}^{(JK)\times R}$,
+$(C^{\top}C \ast B^{\top}B) \in \mathbb{R}^{R \times R}$.
+
+\medskip
+\noindent Finally, normalize the columns of $A'$:
+\begin{equation}
+\lambda_r = \|a'_r\|, \qquad a_r = \frac{a'_r}{\lambda_r},
+\qquad r = 1, \ldots, R
+\end{equation}
+
+\subsubsection*{CP-ALS Algorithm (N-th order tensor)}
+
+Initialization:
+\begin{equation}
+A^{(n)} = R\text{ leading left singular vectors of }X_{(n)},
+\quad n = 1, \ldots, N
+\qquad (= A, B, C \text{ for 3rd order})
+\end{equation}
+
+\bigskip
+\begin{center}
+\begin{minipage}{0.92\linewidth}
+\renewcommand{\baselinestretch}{1.4}\selectfont
+\textbf{procedure} CP-ALS$(\T{X},\, R)$\\
+\quad initialize $A^{(n)} \in \mathbb{R}^{I_n \times R}$ \;for $n = 1, \ldots, N$\\
+\quad \textbf{repeat}\\
+\qquad \textbf{for} $n = 1, \ldots, N$ \textbf{do}\\[2pt]
+\qquad\quad
+$V \leftarrow
+A^{(1)\top}A^{(1)} \ast \cdots \ast A^{(n-1)\top}A^{(n-1)}
+\ast A^{(n+1)\top}A^{(n+1)} \ast \cdots \ast A^{(N)\top}A^{(N)}$\\[2pt]
+\qquad\quad
+$A^{(n)} \leftarrow
+X_{(n)}\!\bigl(A^{(N)} \odot \cdots \odot A^{(n+1)}
+              \odot A^{(n-1)} \odot \cdots \odot A^{(1)}\bigr)
+V^{\dagger}$\\[2pt]
+\qquad\quad normalize columns of $A^{(n)}$ (storing norms as $\lambda$)\\
+\qquad \textbf{end for}\\
+\quad \textbf{until} fit ceases to improve or maximum iterations exhausted\\
+\quad \textbf{return} $\lambda,\; A^{(1)},\; A^{(2)},\; \ldots,\; A^{(N)}$\\
+\textbf{end procedure}
+\end{minipage}
+\end{center}
+
+\medskip
+\noindent (stopping criterion: if $\|A^{(n)}\|_F < \delta$, break)
+
+\newpage
+% ============================================================
+\section{Tucker Decomposition}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{Singular Value Decomposition (SVD)}
+% ------------------------------------------------------------
+
+In general, a matrix $A \in \mathbb{R}^{m \times n}$ can be decomposed as:
+
+\begin{equation}
+A = U \Sigma V^{\top}
+\end{equation}
+
+where:
+\begin{itemize}[itemsep=2pt]
+  \item $U \in \mathbb{R}^{m \times m}$: columns are the left singular vectors
+  \item $\Sigma \in \mathbb{R}^{m \times n}$:
+        $\Sigma = \begin{bmatrix}
+          \sigma_1 & & & \\
+          & \sigma_2 & & \\
+          & & \ddots & \\
+          & & & \sigma_{\min(m,n)}
+        \end{bmatrix}$,\quad
+        singular values $\sigma_1 \geq \sigma_2 \geq \cdots \geq \sigma_{\min(m,n)} \geq 0$
+  \item $V \in \mathbb{R}^{n \times n}$: columns are the right singular vectors
+\end{itemize}
+
+\medskip
+\noindent Eigenvalue structure:
+\begin{align}
+A^{\top}A
+&= V\Sigma^{\top}U^{\top} U\Sigma V^{\top}
+ = V(\Sigma^{\top}\Sigma)V^{\top} \notag\\
+&\Rightarrow\quad A^{\top}A\, V = \sigma^{2}\, V
+\end{align}
+
+$\Rightarrow$ $\sigma^2$ is an eigenvalue and $V$ is the corresponding eigenvector of $A^{\top}A$;
+likewise, $U$ is the eigenvector of $AA^{\top}$.
+
+\medskip
+\noindent $U$, $V$ represent column-wise orthonormal rotations or reflections;
+$\Sigma$ is diagonal and encodes the magnitudes.
+The same structure extends to Tucker decomposition.
+
+% ------------------------------------------------------------
+\subsection{Tucker Decomposition}
+% ------------------------------------------------------------
+
+For $\T{X} \in \mathbb{R}^{I \times J \times K}$ (three-way case):
+
+\begin{equation}
+\T{X} \approx
+\T{G} \times_1 A \times_2 B \times_3 C
+= \sum_{p=1}^{P}\sum_{q=1}^{Q}\sum_{r=1}^{R}
+  g_{pqr}\; a_p \circ b_q \circ c_r
+= \llbracket \T{G};\; A, B, C \rrbracket
+\end{equation}
+
+where:
+\begin{itemize}[itemsep=2pt]
+  \item $A \in \mathbb{R}^{I \times P}$, $B \in \mathbb{R}^{J \times Q}$, $C \in \mathbb{R}^{K \times R}$:
+        factor matrices
+  \item $\T{G} \in \mathbb{R}^{P \times Q \times R}$: core tensor
+  \item $\times_n$: $n$-mode product
+        ($\T{G} \times_n A$ contracts mode $n$ of $\T{G}$ with $A$; equivalently $A \cdot G_{(n)}$)
+\end{itemize}
+
+\noindent Elementwise:
+\begin{equation}
+x_{ijk} \approx
+\sum_{p=1}^{P}\sum_{q=1}^{Q}\sum_{r=1}^{R}
+g_{pqr}\; a_{ip}\; b_{jq}\; c_{kr},
+\qquad
+i=1,\ldots,I,\quad j=1,\ldots,J,\quad k=1,\ldots,K
+\end{equation}
+
+\medskip
+\noindent\textbf{Relation to CP (special case of Tucker):}
+When the core tensor $\T{G}$ is super-diagonal ($g_{pqr}=0$ unless $p=q=r$) and $P=Q=R$:
+\begin{equation}
+\sum_{p}\sum_{q}\sum_{r} g_{pqr}\; a_p \circ b_q \circ c_r
+\;\xrightarrow{\;p=q=r\;}\;
+\sum_{r} \lambda_r\; a_r \circ b_r \circ c_r
+\end{equation}
+
+\medskip
+\noindent If $P, Q, R < I, J, K$, the core tensor $\T{G}$ can be thought of as a
+\emph{compressed version} of the original tensor $\T{X}$.
+
+% ------------------------------------------------------------
+\subsection{Flattening Forms of Tucker Decomposition}
+% ------------------------------------------------------------
+
+\begin{align}
+X_{(1)} &\approx A\, G_{(1)}\,(C \otimes B)^{\top} \\[4pt]
+X_{(2)} &\approx B\, G_{(2)}\,(C \otimes A)^{\top} \\[4pt]
+X_{(3)} &\approx C\, G_{(3)}\,(B \otimes A)^{\top}
+\end{align}
+
+Note: the flattening of Tucker uses the full Kronecker product $\otimes$,
+whereas CP-ALS uses the Khatri--Rao product $\odot$.
+
+% ------------------------------------------------------------
+\subsection{Tucker-1 Decomposition}
+% ------------------------------------------------------------
+
+Sets two of the factor matrices to the identity matrix ($B = C = I$):
+
+\begin{equation}
+\T{X} = \T{G} \times_1 A \times_2 I \times_3 I
+= \T{G} \times_1 A
+= \llbracket \T{G};\; A, I, I \rrbracket
+\qquad\Rightarrow\qquad
+X_{(1)} \approx A\, G_{(1)}
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{Tucker-2 Decomposition}
+% ------------------------------------------------------------
+
+Sets one of the factor matrices to the identity matrix ($C = I$):
+
+\begin{equation}
+\T{X} = \T{G} \times_1 A \times_2 B \times_3 I
+= \T{G} \times_1 A \times_2 B
+= \llbracket \T{G};\; A, B, I \rrbracket
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{$n$-Rank}
+% ------------------------------------------------------------
+
+The \textbf{$n$-rank} of $\T{X}$, denoted $\rank_n(\T{X})$, is the column rank of $X_{(n)}$.
+
+If $R_n = \rank_n(\T{X})$ for $n = 1, \ldots, N$,
+then $\T{X}$ is a \emph{rank-$(R_1, R_2, \ldots, R_N)$} tensor. Trivially:
+
+\begin{equation}
+R_n \leq I_n \quad \text{for all } n = 1, \ldots, N
+\end{equation}
+
+% ------------------------------------------------------------
+\subsection{Higher-Order SVD (HOSVD)}
+% ------------------------------------------------------------
+
+\bigskip
+\begin{center}
+\begin{minipage}{0.92\linewidth}
+\renewcommand{\baselinestretch}{1.4}\selectfont
+\textbf{def} HOSVD$(\T{X},\; R_1, \ldots, R_N)$:\\
+\quad \textbf{for} $n$ in range$(N)$:\\
+\qquad $A^{(n+1)} \leftarrow R_n$ leading left singular vectors of $X_{(n+1)}$\\
+\quad $\T{G} = \T{X} \times_1 A^{(1)\top} \times_2 A^{(2)\top} \cdots \times_N A^{(N)\top}$\\
+\quad \textbf{return} $\T{G},\; A^{(1)},\; \ldots,\; A^{(N)}$
+\end{minipage}
+\end{center}
+
+\medskip
+\noindent Truncation occurs when $R_n < \rank_n(\T{X})$.\\
+HOSVD applies SVD to each mode-$n$ flattening independently;
+it does not guarantee a globally optimal approximation.
+
+% ------------------------------------------------------------
+\subsection{Higher-Order Orthogonal Iteration (HOOI)}
+% ------------------------------------------------------------
+
+\noindent\textbf{Optimization problem:}
+
+\begin{equation}
+\min_{\T{G},\;A^{(1)},\ldots,A^{(N)}}
+\bigl\|\T{X} - \llbracket \T{G};\; A^{(1)}, A^{(2)}, \ldots, A^{(N)} \rrbracket\bigr\|
+\end{equation}
+
+where $\T{G} \in \mathbb{R}^{R_1 \times R_2 \times \cdots \times R_N}$
+and $A^{(n)} \in \mathbb{R}^{I_n \times R_n}$ is columnwise orthonormal
+for $n = 1, \ldots, N$.
+
+\medskip
+\noindent\textbf{Expanding the objective:}
+
+\begin{align}
+&\bigl\|\T{X} - \llbracket \T{G};\; A^{(1)}, \ldots, A^{(N)} \rrbracket\bigr\|^{2} \notag\\[4pt]
+&= \|\T{X}\|^{2}
+   - 2\bigl\langle \T{X},\; \llbracket \T{G};\; A^{(1)}, \ldots, A^{(N)} \rrbracket \bigr\rangle
+   + \bigl\|\llbracket \T{G};\; A^{(1)}, \ldots, A^{(N)} \rrbracket\bigr\|^{2} \notag\\[4pt]
+&= \|\T{X}\|^{2}
+   - 2\bigl\langle
+       \T{X} \times_1 A^{(1)\top} \times_2 A^{(2)\top} \cdots \times_N A^{(N)},\;
+       \T{G}
+     \bigr\rangle
+   + \|\T{G}\|^{2} \notag\\[4pt]
+&\quad\bigl(\text{since } A^{(n)} \text{ is columnwise orthonormal}\bigr) \notag\\[4pt]
+&= \|\T{X}\|^{2} - 2\langle \T{G},\, \T{G}\rangle + \|\T{G}\|^{2}
+ = \|\T{X}\|^{2} - \|\T{G}\|^{2} \notag\\[4pt]
+&= \|\T{X}\|^{2}
+   - \bigl\|\T{X} \times_1 A^{(1)\top} \times_2 A^{(2)\top} \cdots \times_N A^{(N)\top}\bigr\|^{2}
+\end{align}
+
+\noindent Since $\|\T{X}\|$ is constant, minimizing the above is equivalent to:
+
+\begin{equation}
+\max_{A^{(n)}}
+\bigl\|\T{X} \times_1 A^{(1)\top} \times_2 A^{(2)\top} \cdots \times_N A^{(N)\top}\bigr\|
+\end{equation}
+
+\noindent Equivalently (fixing all $A^{(k)}$ for $k \neq n$ and optimizing over $A^{(n)}$):
+
+\begin{equation}
+\max_{A^{(n)}} \bigl\|A^{(n)\top} W\bigr\|,
+\qquad
+W = X_{(n)}\bigl(A^{(N)} \otimes \cdots \otimes A^{(n+1)} \otimes A^{(n-1)} \otimes \cdots \otimes A^{(1)}\bigr)
+\end{equation}
+
+\noindent\textbf{Solution:} set $A^{(n)}$ to be the $R_n$ leading left singular vectors of $W$
+(determined by SVD).
+
+\bigskip
+\noindent\textbf{Tucker decomposition: mathematical summary}
+\begin{itemize}[itemsep=4pt]
+  \item \textbf{HOSVD}: applies SVD to each mode-$n$ flattening $X_{(n)}$ independently;
+        no iterations needed; does not guarantee optimal approximation.
+  \item \textbf{HOOI}: initializes with HOSVD result, then iterates until convergence;
+        finds iteratively-refined approximation; not globally optimal in general.
+\end{itemize}
+
+\end{document}
