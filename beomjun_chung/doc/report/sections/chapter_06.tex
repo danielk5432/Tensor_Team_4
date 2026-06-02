@@ -79,12 +79,10 @@ PSNR but lower compression.
 
 \begin{figure}[h]
   \centering
-  % \includegraphics[width=0.8\linewidth]{figures/psnr_vs_rank.pdf}
-  \fbox{\rule{0pt}{4cm}\rule{0.8\linewidth}{0pt}}  % placeholder
+  \includegraphics[width=0.8\linewidth]{../../outputs/rank_sweep/lena/tucker_rank_sweep}
   \caption{PSNR (left axis) and compression ratio $\rho$ (right axis)
-           as a function of Tucker rank $r$.
-           HOOI ($\mathcal{L}_F$, solid) and IRLS ($\mathcal{L}_1$, dashed)
-           on the clean test image.}
+           as a function of Tucker rank $r$ (Lena image).
+           HOOI ($\mathcal{L}_F$) with rank $(r,r,3)$.}
   \label{fig:psnr_curve}
 \end{figure}
 
@@ -95,8 +93,7 @@ $|\tensor{X} - \hat{\tensor{X}}|$ (averaged over channels).
 
 \begin{figure}[h]
   \centering
-  % \includegraphics[width=\linewidth]{figures/visual_comparison.pdf}
-  \fbox{\rule{0pt}{5cm}\rule{\linewidth}{0pt}}  % placeholder
+  \includegraphics[width=\linewidth]{../../outputs/rank_sweep/lena/reconstruction_panel}
   \caption{Original image (left) and Tucker reconstructions at ranks
            $r = 8$, $r = 20$, $r = 40$ (columns 2--4).
            Bottom row: pointwise error maps (hot colormap, brighter = larger error).}
@@ -112,11 +109,10 @@ corrupted pixels, whereas HOOI error spreads uniformly.
 
 \begin{figure}[h]
   \centering
-  % \includegraphics[width=\linewidth]{figures/norm_comparison.pdf}
-  \fbox{\rule{0pt}{4cm}\rule{\linewidth}{0pt}}  % placeholder
-  \caption{Reconstruction from 10\% sparse corruption.
-           Left to right: corrupted input, HOOI, IRLS, Adam.
-           Bottom row: error maps.}
+  \includegraphics[width=\linewidth]{../../outputs/noise_robustness/noise_comparison}
+  \caption{Reconstruction under noise.
+           Rows: different noise types and magnitudes.
+           Columns: input, HOOI ($\mathcal{L}_F$), IRLS ($\mathcal{L}_1$).}
   \label{fig:norm_compare}
 \end{figure}
 

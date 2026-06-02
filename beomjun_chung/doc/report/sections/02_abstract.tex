@@ -1,11 +1,39 @@
 \begin{abstract}
-    This report presents the design and implementation of an Attitude and Heading Reference System using the MPU-9250 Inertial Measurement Unit. The study covers the full pipeline from sensor characterization to state estimation, including stochastic noise modeling via Allan Variance and Power Spectral Density analysis, static calibration of the accelerometer, and Hard/Soft Iron correction for the magnetometer.\\
+    This report presents a comparative study of low-rank tensor approximation methods
+    applied to colour image reconstruction, covering both image compression and robust
+    recovery from corrupted observations.
+    Colour images are modelled as third-order tensors of shape $H \times W \times 3$,
+    and low-rank structure is exploited by two decomposition families:
+    Tucker decomposition, parameterised by a multi-linear rank $(r_1, r_2, r_3)$ and
+    a compact core tensor, and CP (CANDECOMP/PARAFAC) decomposition, which expresses
+    the tensor as a weighted sum of rank-1 outer products.\\
 
-    Three attitude estimation algorithms are designed and compared: a Complementary Filter, the Mahony and Madgwick filters, and an Extended Kalman Filter. The EKF is formulated with a quaternion-based state representation to avoid gimbal lock and provide globally stable attitude estimates. Algorithm performance is first validated through Python-based simulation under controlled motion profiles, then evaluated on hardware using an Arduino-based platform with the MPU-9250.\\
+    Three reconstruction objectives are investigated:
+    the squared Frobenius norm, which admits analytically tractable Alternating Least
+    Squares (ALS) updates and is optimal under Gaussian noise;
+    the $\ell_1$ norm, which is robust to sparse outliers and is minimised via
+    Iteratively Reweighted Least Squares (IRLS);
+    and the Huber loss, which smoothly interpolates between the two and is optimised
+    with Adam gradient descent.
+    Tucker decomposition is implemented from scratch using Higher-Order SVD (HOSVD)
+    initialisation followed by Higher-Order Orthogonal Iteration (HOOI) refinement,
+    with correctness verified against TensorLy.\\
 
-    % [Results placeholder] Experimental results demonstrate that — [여기에 나중에 RMS error, drift rate, 필터 간 비교 결과 등을 채워넣으면 됩니다] — confirming the effectiveness of the proposed calibration and sensor fusion pipeline.\\
+    Four controlled experiments validate the theoretical framework.
+    First, the empirical HOSVD reconstruction error satisfies the theoretical
+    multilinear singular-value error bound for all tested ranks, with HOOI
+    consistently improving upon the HOSVD baseline.
+    Second, under sparse pixel corruption, $\ell_1$-Tucker (IRLS) outperforms
+    Frobenius-Tucker (HOOI) by a margin that grows with corruption density;
+    Frobenius-Tucker remains optimal under Gaussian noise.
+    Third, HOOI converges in approximately 10--20 iterations whereas Adam requires
+    several hundred, confirming the efficiency advantage of closed-form ALS updates.
+    Fourth, HOSVD initialisation achieves lower and zero-variance reconstruction
+    error compared with random initialisation, reducing the impact of non-convexity.
 \end{abstract}
 
 \begin{keywords}
-    Inertial Measurement Unit, Extended Kalman Filter, Attitude and Heading Reference System, Sensor Calibration, Allan Variance, Sensor Fusion
+    Tucker Decomposition, CP Decomposition, HOSVD, HOOI,
+    Iteratively Reweighted Least Squares, Image Compression,
+    Robust Tensor Approximation, Frobenius Norm, $\ell_1$ Norm, Huber Loss
 \end{keywords}
